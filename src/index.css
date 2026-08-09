@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(0 0% 96%);
+  --color-foreground: hsl(0 0% 10%);
+  --color-card: hsl(0 0% 100% / 0.88);
+  --color-card-foreground: hsl(0 0% 10%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(0 0% 10%);
+  --color-primary: hsl(0 0% 12%);
+  --color-primary-foreground: hsl(0 0% 98%);
+  --color-secondary: hsl(0 0% 91%);
+  --color-secondary-foreground: hsl(0 0% 14%);
+  --color-muted: hsl(0 0% 92%);
+  --color-muted-foreground: hsl(0 0% 42%);
+  --color-accent: hsl(0 0% 88%);
+  --color-accent-foreground: hsl(0 0% 12%);
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-border: hsl(0 0% 82%);
+  --color-input: hsl(0 0% 82%);
+  --color-ring: hsl(0 0% 22%);
+  --color-chart-1: hsl(12 76% 61%);
+  --color-chart-2: hsl(173 58% 39%);
+  --color-chart-3: hsl(197 37% 24%);
+  --color-chart-4: hsl(43 74% 66%);
+  --color-chart-5: hsl(27 87% 67%);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --animate-blink: blink 1s step-end infinite;
+  --animate-fade-in-up: fade-in-up 0.4s ease-out;
+  --animate-scale-in: scale-in 0.3s ease-out;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.dark {
+  --color-background: hsl(0 0% 6%);
+  --color-foreground: hsl(0 0% 98%);
+  --color-card: hsl(0 0% 9% / 0.94);
+  --color-card-foreground: hsl(0 0% 98%);
+  --color-popover: hsl(0 0% 3.9%);
+  --color-popover-foreground: hsl(0 0% 98%);
+  --color-primary: hsl(0 0% 92%);
+  --color-primary-foreground: hsl(0 0% 8%);
+  --color-secondary: hsl(0 0% 14.9%);
+  --color-secondary-foreground: hsl(0 0% 98%);
+  --color-muted: hsl(0 0% 14.9%);
+  --color-muted-foreground: hsl(0 0% 63.9%);
+  --color-accent: hsl(0 0% 14.9%);
+  --color-accent-foreground: hsl(0 0% 98%);
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-border: hsl(0 0% 14.9%);
+  --color-input: hsl(0 0% 14.9%);
+  --color-ring: hsl(0 0% 78%);
+  --color-chart-1: hsl(220 70% 50%);
+  --color-chart-2: hsl(160 60% 45%);
+  --color-chart-3: hsl(30 80% 55%);
+  --color-chart-4: hsl(280 65% 60%);
+  --color-chart-5: hsl(340 75% 55%);
+}
+
+html {
+  transition: color-scheme 0.3s;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "JetBrains Mono", monospace;
+    min-width: 320px;
+  }
+
+  kbd {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+.workspace-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, hsl(0 0% 100% / 0.95), transparent 42%),
+    radial-gradient(ellipse at 88% 18%, hsl(0 0% 78% / 0.34), transparent 38%),
+    linear-gradient(145deg, hsl(0 0% 97%), hsl(0 0% 88%));
+}
+
+.workspace-shell::before {
+  content: "{ }  </>  fn()  =>  []  ::  01  const  return  async  #!  $_";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  color: hsl(0 0% 8% / 0.035);
+  font-size: clamp(2.8rem, 8vw, 7.5rem);
+  font-weight: 800;
+  line-height: 1.65;
+  letter-spacing: 0.08em;
+  word-spacing: 0.35em;
+  transform: rotate(-8deg) scale(1.12);
+  pointer-events: none;
+}
+
+.dark .workspace-shell::before {
+  color: hsl(0 0% 100% / 0.025);
+}
+
+.dark .workspace-shell {
+  background-image:
+    radial-gradient(ellipse at 12% 0%, hsl(0 0% 20% / 0.7), transparent 42%),
+    radial-gradient(ellipse at 88% 18%, hsl(0 0% 26% / 0.36), transparent 38%),
+    linear-gradient(145deg, hsl(0 0% 8%), hsl(0 0% 3%));
+}
+
+.logo-mark {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid hsl(0 0% 55% / 0.3);
+  border-radius: 0.8rem;
+  color: var(--color-primary);
+  background: linear-gradient(145deg, hsl(0 0% 100% / 0.95), hsl(0 0% 84% / 0.8));
+  box-shadow: 0 10px 30px hsl(0 0% 10% / 0.11);
+}
+
+.logo-mark svg { width: 1.15rem; }
+
+.dark .logo-mark {
+  background: linear-gradient(145deg, hsl(0 0% 18%), hsl(0 0% 8%));
+}
+
+.code-window {
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 70px hsl(0 0% 10% / 0.16), 0 1px 0 hsl(0 0% 100% / 0.7) inset;
+}
+
+.code-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(max-content, 1fr);
+  min-height: calc(var(--code-font-size, 16px) * 1.75);
+  font-family: var(--code-font-family, "JetBrains Mono", monospace);
+  font-size: var(--code-font-size, 16px);
+  line-height: 1.75;
+}
+
+.code-row.is-current-line {
+  background: linear-gradient(90deg, hsl(0 0% 45% / 0.12), transparent 68%);
+}
+
+.code-line-number {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 0 0.9rem;
+  border-right: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  background: color-mix(in srgb, var(--color-muted) 82%, transparent);
+  text-align: right;
+  user-select: none;
+}
+
+.code-line-number.is-current {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,11 @@
+- Values light/dark theme support in web applications. Confidence: 0.7
+- Prioritizes intuitive, polished UI/UX over raw functionality. Confidence: 0.7
+- Dislikes flat/plain visual design; explicitly wants visual depth, framing, and rich aesthetics in workspace/editor UI — calls out "polos" (bare) and "flat" looks as undesirable. Confidence: 0.7
+- Prefers dynamic, varied content sourced from external/real-world data (e.g., GitHub public repos) over static, bundled content that repeats — dislikes seeing the same content cycle. Confidence: 0.6
+- Communicates in casual, informal shorthand (e.g., "oke", "beter"), mixing Indonesian and English. Confidence: 0.6
+- Uses Monkeytype as a design/UX benchmark — references its stat layouts, mode variety, and visual polish as the gold standard. Confidence: 0.7
+- Prefers comprehensive statistics and multiple modes in tools/apps over minimal feature sets. Confidence: 0.7
+- Plans for future extensibility; wants code architecture that accommodates forthcoming features (e.g., leaderboards, streak tracking). Confidence: 0.6
+- Values user-configurable preferences/settings in applications — wants controls for font size, font family, cursor style, and expects the settings surface to accommodate more options over time. Confidence: 0.8
+- Prefers dedicated routes/pages for settings or feature-heavy screens over side panels, modals, or slide-in sheets — explicitly chooses URL-routable full pages when a surface is expected to grow in complexity. Confidence: 0.7
+- Cares deeply about cursor/input visibility; finds blinking or low-contrast cursors frustrating and wants interactive elements always clearly visible regardless of theme. Confidence: 0.7
