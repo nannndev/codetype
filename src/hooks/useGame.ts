@@ -21,6 +21,7 @@ interface UseGameReturn {
   keystrokes: number;
   mistakes: number;
   errorHistory: ErrorDetail[];
+  completedCorrectChars: number;
 }
 
 export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
@@ -34,6 +35,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
   const [keystrokes, setKeystrokes] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [errorHistory, setErrorHistory] = useState<ErrorDetail[]>([]);
+  const [completedCorrectChars, setCompletedCorrectChars] = useState(0);
 
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -41,6 +43,8 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
   const countdownIntervalRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
   const correctCharsRef = useRef(0);
+  const completedCorrectCharsRef = useRef(0);
+  const typedAttemptsRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (rafRef.current !== null) {
@@ -115,7 +119,12 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
       }
 
       if (key === "Backspace") {
-        setInput((prev) => prev.slice(0, -1));
+        setInput((prev) => {
+          const next = prev.slice(0, -1);
+          const currentCorrect = [...next].filter((char, index) => char === snippet.code[index]).length;
+          correctCharsRef.current = completedCorrectCharsRef.current + currentCorrect;
+          return next;
+        });
         return;
       }
 
@@ -123,23 +132,28 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
         setInput((prev) => {
           const position = prev.length;
           const expected = snippet.code[position] ?? '';
+          const attemptIndex = typedAttemptsRef.current;
+          typedAttemptsRef.current += 1;
           setKeystrokes((count) => count + 1);
           if (key !== expected) {
             setMistakes((count) => count + 1);
             setErrorHistory((errors) => [
               ...errors,
-              { index: position, expected, typed: key },
+              { index: position, attemptIndex, expected, typed: key },
             ].slice(-200));
           }
 
           const next = prev + key;
           const newCorrect = [...next].filter((c, i) => c === snippet.code[i]).length;
-          correctCharsRef.current = newCorrect;
+          correctCharsRef.current = completedCorrectCharsRef.current + newCorrect;
 
           if (next.length >= snippet.code.length) {
             if (config.mode === 'snippet') {
               finish();
             } else {
+              completedCorrectCharsRef.current += newCorrect;
+              correctCharsRef.current = completedCorrectCharsRef.current;
+              setCompletedCorrectChars(completedCorrectCharsRef.current);
               setSnippetsCompleted((n) => n + 1);
               setSnippet(getSnippet());
               return '';
@@ -156,6 +170,8 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     clearTimers();
     finishedRef.current = false;
     correctCharsRef.current = 0;
+    completedCorrectCharsRef.current = 0;
+    typedAttemptsRef.current = 0;
     setInput('');
     setStatus('idle');
     setElapsedMs(0);
@@ -165,6 +181,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     setKeystrokes(0);
     setMistakes(0);
     setErrorHistory([]);
+    setCompletedCorrectChars(0);
     setSnippet(getSnippet());
   }, [clearTimers, config.duration, getSnippet]);
 
@@ -192,5 +209,6 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     keystrokes,
     mistakes,
     errorHistory,
+    completedCorrectChars,
   };
 }

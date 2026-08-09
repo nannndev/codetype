@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { CornerDownLeft, IndentIncrease } from "lucide-react";
+import { CornerDownLeft, IndentIncrease, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CodeDisplay } from "@/components/CodeDisplay";
 import { StatsBar } from "@/components/StatsBar";
 import { ResultsScreen } from "@/components/ResultsScreen";
@@ -41,6 +42,7 @@ export default function App() {
     keystrokes,
     mistakes,
     errorHistory,
+    completedCorrectChars,
   } = useGame({ config, getSnippet: getRandomSnippet });
 
   const [result, setResult] = useState<RunResult | null>(null);
@@ -70,13 +72,16 @@ export default function App() {
   }, [language, mode, duration, status, reset, focusWorkspace]);
 
   useEffect(() => {
-    if (status === "finished" && input.length > 0) {
-      const correct = [...input].filter((c, i) => c === snippet.code[i]).length;
+    if (status === "finished" && keystrokes > 0) {
+      const currentCorrect = [...input].filter((c, i) => c === snippet.code[i]).length;
+      const correct = completedCorrectChars + currentCorrect;
       const wpm = computeWpm(correct, elapsedMs);
       const acc = keystrokes === 0 ? 100 : Math.round(((keystrokes - mistakes) / keystrokes) * 1000) / 10;
-      const rawWpm = computeRawWpm(input.length, elapsedMs);
+      const rawWpm = computeRawWpm(keystrokes, elapsedMs);
       const consistency = computeConsistency(wpmSnapshots);
-      const perLineStats = computePerLineStats(snippet.code, input, errorHistory);
+      const perLineStats = config.mode === "snippet"
+        ? computePerLineStats(snippet.code, input, errorHistory)
+        : [];
 
       const r: RunResult = {
         snippetId: snippet.id,
@@ -86,7 +91,7 @@ export default function App() {
         wpm,
         accuracy: acc,
         duration: Math.round(elapsedMs),
-        charsTyped: input.length,
+        charsTyped: keystrokes,
         timestamp: Date.now(),
         mode: config.mode,
         rawWpm: rawWpm,
@@ -106,7 +111,7 @@ export default function App() {
         // localStorage may be unavailable
       }
     }
-  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory]);
+  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars]);
 
   const handleRetry = useCallback(() => {
     setResult(null);
@@ -145,8 +150,14 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleRetry();
+        return;
+      }
+
       if (status === "finished") {
-        if (e.key === "Enter" || (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey)) {
+        if (e.key === "Enter") {
           e.preventDefault();
           handleRetry();
         }
@@ -167,6 +178,10 @@ export default function App() {
 
       if (e.key === "Tab") {
         e.preventDefault();
+        if (mode === "zen" && status === "running") {
+          stop();
+          return;
+        }
         engineHandleKey(" ");
         engineHandleKey(" ");
         return;
@@ -177,7 +192,7 @@ export default function App() {
         engineHandleKey("\n");
       }
     },
-    [status, engineHandleKey, handleRetry],
+    [status, mode, engineHandleKey, handleRetry, stop],
   );
 
   const charStates = useMemo(() => computeCharStates(snippet.code, input), [snippet.code, input]);
@@ -186,8 +201,8 @@ export default function App() {
     [keystrokes, mistakes],
   );
   const correctChars = useMemo(
-    () => [...input].filter((c, i) => c === snippet.code[i]).length,
-    [input, snippet.code],
+    () => completedCorrectChars + [...input].filter((c, i) => c === snippet.code[i]).length,
+    [completedCorrectChars, input, snippet.code],
   );
   const wpm = useMemo(() => computeWpm(correctChars, elapsedMs), [correctChars, elapsedMs]);
   const progress = useMemo(
@@ -226,14 +241,6 @@ export default function App() {
               onStopZen={handleZenStop}
             />
 
-            <LanguagePicker
-              languages={languages}
-              selected={language}
-              onSelect={handleLanguageChange}
-              disabled={status === "running"}
-              loading={isLoadingSource}
-            />
-
             <StatsBar
               wpm={wpm}
               accuracy={accuracy}
@@ -243,6 +250,14 @@ export default function App() {
               secondsRemaining={secondsRemaining}
               snippetsCompleted={snippetsCompleted}
               totalChars={input.length}
+            />
+
+            <LanguagePicker
+              languages={languages}
+              selected={language}
+              onSelect={handleLanguageChange}
+              disabled={status === "running"}
+              loading={isLoadingSource}
             />
 
             <CodeDisplay
@@ -255,14 +270,21 @@ export default function App() {
             />
 
             <div className="flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                {status === "idle"
-                  ? "Start typing to begin"
-                  : mode === "zen"
-                    ? "Zen mode — Tab to stop"
-                    : "Keep typing..."}
+              <span className="flex items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={handleRetry} className="h-7 px-2 text-[11px]">
+                  <RotateCcw data-icon="inline-start" /> Restart
+                </Button>
+                <span>
+                  {status === "idle"
+                    ? "Start typing to begin"
+                    : mode === "zen"
+                      ? "Zen mode — Tab to stop"
+                      : "Keep typing..."}
+                </span>
               </span>
               <span className="flex flex-wrap items-center gap-2">
+                <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">Esc</kbd>
+                <span>restart</span>
                 <IndentIncrease aria-hidden="true" className="size-3.5" />
                 <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-mono">Tab</kbd>
                 <span>{mode === "zen" ? "stop" : "indent"}</span>

@@ -34,6 +34,7 @@ export interface PerLineStats {
 
 export interface ErrorDetail {
   index: number;
+  attemptIndex?: number;
   expected: string;
   typed: string;
 }

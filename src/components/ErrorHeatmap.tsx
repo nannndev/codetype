@@ -8,7 +8,7 @@ interface ErrorHeatmapProps {
 export function ErrorHeatmap({ errorPositions, totalChars }: ErrorHeatmapProps) {
   if (totalChars === 0) return null;
 
-  const errorSet = new Set(errorPositions.map((e) => e.index));
+  const errorSet = new Set(errorPositions.map((e) => e.attemptIndex ?? e.index));
   const charsPerRow = 40;
   const rows = Math.ceil(totalChars / charsPerRow);
   const grid: number[][] = [];
