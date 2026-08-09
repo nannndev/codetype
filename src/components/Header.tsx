@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Braces, Settings } from "lucide-react";
+import { BarChart3, Braces, Settings, Trophy } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
@@ -13,6 +13,13 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <Link
+          to="/leaderboard"
+          className="rounded-md p-2 hover:bg-muted transition-colors"
+          aria-label="Open leaderboard"
+        >
+          <Trophy className="size-[18px] text-muted-foreground" />
+        </Link>
         <Link
           to="/history"
           className="rounded-md p-2 hover:bg-muted transition-colors"

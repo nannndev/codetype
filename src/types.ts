@@ -60,3 +60,30 @@ export interface RunResult {
   snippetsCompleted: number;
   targetChars?: number;
 }
+
+export interface PersonalBest {
+  language: string;
+  mode: TestMode;
+  duration: number | null;
+  bestWpm: number;
+  bestAccuracy: number;
+  bestConsistency: number;
+  lastRunAt: number;
+  totalRuns: number;
+}
+
+export interface Settings {
+  version: 1;
+  goals: {
+    runsPerDay: number;
+    minutesPerDay: number;
+    charsPerDay: number;
+  };
+  achievements: string[];
+}
+
+export interface HistoryFilter {
+  language: string;
+  mode: TestMode | 'all';
+  timeRange: 'all' | '30d' | '7d';
+}

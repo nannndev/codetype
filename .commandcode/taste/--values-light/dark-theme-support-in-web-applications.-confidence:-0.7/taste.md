@@ -7,6 +7,10 @@
 - Uses Monkeytype as a design/UX benchmark — references its stat layouts, mode variety, and visual polish as the gold standard. Confidence: 0.7
 - Prefers comprehensive statistics and multiple modes in tools/apps over minimal feature sets. Confidence: 0.7
 - Plans for future extensibility; wants code architecture that accommodates forthcoming features (e.g., leaderboards, streak tracking). Confidence: 0.6
+- Prefers "Coming Soon" placeholder pages for planned features rather than omitting them from the UI entirely until they are fully built. Confidence: 0.7
+- Values open-source transparency; wants GitHub repository link, star button, and contributor attribution visibly integrated into the application. Confidence: 0.7
+- Prefers a persistent footer across all pages carrying project metadata and attribution (repo, stars, contributor). Confidence: 0.7
 - Values user-configurable preferences/settings in applications — wants controls for font size, font family, cursor style, and expects the settings surface to accommodate more options over time. Confidence: 0.8
 - Prefers dedicated routes/pages for settings or feature-heavy screens over side panels, modals, or slide-in sheets — explicitly chooses URL-routable full pages when a surface is expected to grow in complexity. Confidence: 0.7
 - Cares deeply about cursor/input visibility; finds blinking or low-contrast cursors frustrating and wants interactive elements always clearly visible regardless of theme. Confidence: 0.7
+- Uses structured feature-specification documents (`.commandcode/handoff-*.md` files) as the primary mechanism to communicate and persist detailed feature requirements across sessions. Confidence: 0.7

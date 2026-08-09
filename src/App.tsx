@@ -7,6 +7,7 @@ import { ResultsScreen } from "@/components/ResultsScreen";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { ModeSelector } from "@/components/ModeSelector";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { useGame } from "@/hooks";
 import { useSnippets } from "@/hooks/useSnippets";
 import { getLanguages } from "@/data";
@@ -18,8 +19,9 @@ import {
   computePerLineStats,
   saveResult,
   updateStreak,
+  getPersonalBest,
 } from "@/utils";
-import type { TestMode, TimedDuration, RunResult } from "@/types";
+import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 export default function App() {
   const [language, setLanguage] = useState("All");
@@ -46,6 +48,7 @@ export default function App() {
   } = useGame({ config, getSnippet: getRandomSnippet });
 
   const [result, setResult] = useState<RunResult | null>(null);
+  const [previousBest, setPreviousBest] = useState<PersonalBest | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration });
 
@@ -104,6 +107,8 @@ export default function App() {
         targetChars: snippet.code.length,
       };
       setResult(r);
+      const pb = getPersonalBest(r.language, r.mode, r.duration);
+      setPreviousBest(pb);
       try {
         saveResult(r);
         updateStreak();
@@ -229,7 +234,7 @@ export default function App() {
         <Header />
 
         {result ? (
-          <ResultsScreen result={result} onRetry={handleRetry} onNext={handleNextSnippet} />
+          <ResultsScreen result={result} previousBest={previousBest} onRetry={handleRetry} onNext={handleNextSnippet} />
         ) : (
           <main className="mt-8 flex flex-col gap-6 animate-scale-in">
             <ModeSelector
@@ -296,6 +301,7 @@ export default function App() {
           </main>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

@@ -7,4 +7,15 @@ export {
   computePerLineStats,
   computeErrorMap,
 } from './scoring';
-export { getHistory, saveResult, getResults, getResultsByMode, getStreak, updateStreak } from './storage';
+export {
+  getHistory,
+  saveResult,
+  getResults,
+  getResultsByMode,
+  getStreak,
+  updateStreak,
+  getSettings,
+  saveSettings,
+  getPersonalBests,
+  getPersonalBest,
+} from './storage';

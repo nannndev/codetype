@@ -6,6 +6,7 @@ import { PreferencesProvider } from './components/PreferencesProvider';
 import App from './App';
 import Settings from './routes/Settings';
 import History from './routes/History';
+import Leaderboard from './routes/Leaderboard';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<App />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/history" element={<History />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
           </Routes>
         </BrowserRouter>
       </PreferencesProvider>

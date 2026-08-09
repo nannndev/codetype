@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePreferences, type FontSize, type FontFamily, type CursorStyle } from "@/components/PreferencesProvider";
+import { Footer } from "@/components/Footer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const FONT_SIZE_OPTIONS: { value: FontSize; label: string }[] = [
@@ -111,6 +112,7 @@ export default function Settings() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

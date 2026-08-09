@@ -1,21 +1,26 @@
-import type { RunResult } from "@/types";
+import type { RunResult, PersonalBest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorHeatmap } from "@/components/ErrorHeatmap";
-import { RefreshCw, ArrowRight } from "lucide-react";
+import { RefreshCw, ArrowRight, Trophy } from "lucide-react";
 
 interface ResultsScreenProps {
   result: RunResult;
+  previousBest: PersonalBest | null;
   onRetry: () => void;
   onNext: () => void;
 }
 
-export function ResultsScreen({ result, onRetry, onNext }: ResultsScreenProps) {
+export function ResultsScreen({ result, previousBest, onRetry, onNext }: ResultsScreenProps) {
   const modeLabel =
     result.mode === 'timed'
       ? `${result.duration / 1000}s`
       : result.mode === 'zen'
         ? 'Zen'
         : 'Snippet';
+
+  const isNewWpmRecord = previousBest ? result.wpm > previousBest.bestWpm : true;
+  const isNewAccuracyRecord = previousBest ? result.accuracy > previousBest.bestAccuracy : true;
+  const hasAnyRecord = isNewWpmRecord || isNewAccuracyRecord;
 
   return (
     <div className="mt-8 flex animate-fade-in-up flex-col gap-5">
@@ -28,15 +33,44 @@ export function ResultsScreen({ result, onRetry, onNext }: ResultsScreenProps) {
 
       {/* Hero Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border bg-card p-6 text-center">
+        <div className="relative rounded-xl border bg-card p-6 text-center">
+          {isNewWpmRecord && (
+            <div className="absolute -top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              <Trophy className="size-3" /> Record
+            </div>
+          )}
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">WPM</p>
           <p className="text-5xl font-bold tracking-tight">{result.wpm.toFixed(1)}</p>
+          {previousBest && (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Best: {previousBest.bestWpm.toFixed(1)} WPM in {previousBest.totalRuns} runs
+            </p>
+          )}
         </div>
-        <div className="rounded-xl border bg-card p-6 text-center">
+        <div className="relative rounded-xl border bg-card p-6 text-center">
+          {isNewAccuracyRecord && result.accuracy > 0 && (
+            <div className="absolute -top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              <Trophy className="size-3" /> Record
+            </div>
+          )}
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Accuracy</p>
           <p className="text-5xl font-bold tracking-tight text-green-600 dark:text-green-400">{result.accuracy.toFixed(1)}%</p>
+          {previousBest && (
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Best: {previousBest.bestAccuracy.toFixed(1)}%
+            </p>
+          )}
         </div>
       </div>
+
+      {hasAnyRecord && (
+        <div className="flex justify-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+            <Trophy className="size-3.5" />
+            New personal best!
+          </span>
+        </div>
+      )}
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-4 gap-2">
