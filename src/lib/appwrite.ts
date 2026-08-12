@@ -4,7 +4,7 @@ const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT?.trim();
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID?.trim();
 
 export const appwriteConfig = {
-  endpoint: endpoint || "https://cloud.appwrite.io/v1",
+  endpoint: endpoint || "https://sgp.cloud.appwrite.io/v1",
   projectId: projectId || "",
   databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID?.trim() || "codetype",
   profilesCollectionId: import.meta.env.VITE_APPWRITE_PROFILES_COLLECTION_ID?.trim() || "profiles",

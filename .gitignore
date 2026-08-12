@@ -2,6 +2,7 @@ node_modules/
 dist/
 .npm-cache/
 .vercel/
+appwrite.config.json
 
 .env
 .env.*

@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Braces, Settings, Trophy } from "lucide-react";
+import { BarChart3, Braces, LogIn, LogOut, Settings, Trophy } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { Button } from "./ui/button";
+import { useAuth } from "./AuthProvider";
 
 export function Header() {
+  const { user, loading, configured, login, logout } = useAuth();
+
   return (
     <header className="flex items-center justify-between border-b border-border/70 pb-5">
       <div className="flex items-center gap-3">
@@ -35,6 +39,26 @@ export function Header() {
           <Settings className="size-[18px] text-muted-foreground" />
         </Link>
         <ThemeToggle />
+        {configured ? (
+          user ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => void logout()}
+              aria-label={`Sign out ${user.name || user.email}`}
+              title={user.name || user.email}
+            >
+              <span className="max-w-24 truncate">{user.name || "Account"}</span>
+              <LogOut data-icon="inline-end" />
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={login} disabled={loading}>
+              <LogIn data-icon="inline-start" />
+              {loading ? "Checking" : "GitHub"}
+            </Button>
+          )
+        ) : null}
       </div>
     </header>
   );

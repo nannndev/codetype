@@ -9,7 +9,7 @@ CodeType remains fully usable without Appwrite. Configure Appwrite only when pub
    - `localhost`
    - the production Vercel domain
 3. Copy the project ID into `VITE_APPWRITE_PROJECT_ID`.
-4. Keep the default endpoint `https://cloud.appwrite.io/v1`, or replace it for a self-hosted instance.
+4. This project is currently hosted in Singapore, so its endpoint is `https://sgp.cloud.appwrite.io/v1`.
 
 ## GitHub OAuth
 
