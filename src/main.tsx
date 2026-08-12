@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { ThemeProvider } from './components/ThemeProvider';
 import { PreferencesProvider } from './components/PreferencesProvider';
 import { AuthProvider } from './components/AuthProvider';
@@ -9,6 +10,8 @@ import Settings from './routes/Settings';
 import History from './routes/History';
 import Leaderboard from './routes/Leaderboard';
 import Profile from './routes/Profile';
+import Donate from './routes/Donate';
+import Contributors from './routes/Contributors';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -26,8 +29,12 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:userId" element={<Profile />} />
+              <Route path="/donate" element={<Donate />} />
+              <Route path="/support" element={<Donate />} />
+              <Route path="/contributors" element={<Contributors />} />
             </Routes>
           </BrowserRouter>
+          <Analytics />
         </AuthProvider>
       </PreferencesProvider>
     </ThemeProvider>

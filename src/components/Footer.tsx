@@ -1,4 +1,5 @@
-import { Star } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Heart, Star, Users } from "lucide-react";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -12,15 +13,33 @@ export function Footer() {
   return (
     <footer className="mt-16 border-t border-border bg-muted/30">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-6 sm:flex-row sm:justify-between sm:px-6">
-        <a
-          href="https://github.com/nannndev/codetype"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <GithubIcon className="size-4" />
-          <span>nannndev/codetype</span>
-        </a>
+        <div className="flex flex-wrap items-center gap-4">
+          <a
+            href="https://github.com/nannndev/codetype"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <GithubIcon className="size-4" />
+            <span>nannndev/codetype</span>
+          </a>
+          <span className="text-border hidden sm:inline">&bull;</span>
+          <Link
+            to="/contributors"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Users className="size-3.5" />
+            <span>Contributors</span>
+          </Link>
+          <span className="text-border hidden sm:inline">&bull;</span>
+          <Link
+            to="/donate"
+            className="inline-flex items-center gap-1.5 text-xs text-amber-500 font-medium transition-colors hover:text-amber-400"
+          >
+            <Heart className="size-3.5 fill-current" />
+            <span>Donate</span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-4">
           <a
