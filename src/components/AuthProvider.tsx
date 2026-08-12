@@ -25,7 +25,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function githubUsernameFromUser(user: Models.User<Models.Preferences>): string | undefined {
+export function githubUsernameFromUser(user: Models.User<Models.Preferences>): string | undefined {
   const preferences = user.prefs as Record<string, unknown>;
   const preferenceUsername = preferences.githubUsername;
   if (typeof preferenceUsername === "string" && preferenceUsername.trim()) return preferenceUsername.trim();
