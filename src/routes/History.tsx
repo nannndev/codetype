@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Flame, Gauge, Target, Activity, TrendingUp } from "lucide-react";
+import { ArrowLeft, CalendarDays, Flame, Gauge, Target, Activity, TrendingUp, Share2 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getHistory, getStreak, getPersonalBests } from "@/utils/storage";
 import { Footer } from "@/components/Footer";
 import type { RunResult, HistoryFilter, TestMode } from "@/types";
+import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
+import { shareResultImage } from "@/lib/share-result";
 
 function average(values: number[]): number {
   if (values.length === 0) return 0;
@@ -176,6 +178,7 @@ const LANGUAGE_OPTIONS = (() => {
 })();
 
 export default function History() {
+  const { user } = useAuth();
   const [languageFilter, setLanguageFilter] = useState(ALL_LANGUAGES);
   const [modeFilter, setModeFilter] = useState<TestMode | "all">("all");
   const [timeFilter, setTimeFilter] = useState<"all" | "30d" | "7d">("all");
@@ -358,7 +361,7 @@ export default function History() {
               {recent.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">No runs match the current filters.</div>
               ) : recent.map((run) => (
-                <div key={run.id ?? run.timestamp} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-b p-4 last:border-b-0">
+                <div key={run.id ?? run.timestamp} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 border-b p-4 last:border-b-0">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{run.filename ?? run.language}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -373,6 +376,7 @@ export default function History() {
                     <div className="font-bold tabular-nums">{run.accuracy.toFixed(1)}%</div>
                     <div className="text-[10px] text-muted-foreground">accuracy</div>
                   </div>
+                  <button type="button" onClick={() => void shareResultImage({ result: run, username: user ? githubUsernameFromUser(user) || user.name || undefined : undefined, heading: "History highlight" })} className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Share this result"><Share2 className="size-3.5" /></button>
                 </div>
               ))}
             </div>

@@ -120,6 +120,7 @@ export default function App() {
         snippetsCompleted,
         targetChars: snippet.code.length,
         sourceType: snippet.sourceType ?? "public",
+        wpmSnapshots,
       };
       setResult(r);
       const isCustom = snippet.sourceType === "custom";

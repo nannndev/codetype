@@ -1,7 +1,10 @@
 import type { RunResult, PersonalBest } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorHeatmap } from "@/components/ErrorHeatmap";
-import { RefreshCw, ArrowRight, Trophy } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw, ArrowRight, Trophy, ImageDown, LoaderCircle, Check } from "lucide-react";
+import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
+import { shareResultImage } from "@/lib/share-result";
 
 interface ResultsScreenProps {
   result: RunResult;
@@ -11,6 +14,8 @@ interface ResultsScreenProps {
 }
 
 export function ResultsScreen({ result, previousBest, onRetry, onNext }: ResultsScreenProps) {
+  const { user } = useAuth();
+  const [shareStatus, setShareStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
   const modeLabel =
     result.mode === 'timed'
       ? `${result.duration / 1000}s`
@@ -22,6 +27,18 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
   const isNewAccuracyRecord = previousBest ? result.accuracy > previousBest.bestAccuracy : true;
   const hasAnyRecord = isNewWpmRecord || isNewAccuracyRecord;
   const isCustom = result.sourceType === "custom";
+
+  const handleShare = async () => {
+    setShareStatus("creating");
+    try {
+      await shareResultImage({ result, username: user ? githubUsernameFromUser(user) || user.name || undefined : undefined });
+      setShareStatus("done");
+      window.setTimeout(() => setShareStatus("idle"), 2200);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") setShareStatus("idle");
+      else setShareStatus("error");
+    }
+  };
 
   return (
     <div className="mt-8 flex animate-fade-in-up flex-col gap-5">
@@ -142,6 +159,10 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
 
       {/* CTAs */}
       <div className="flex flex-col items-center gap-2">
+        <Button onClick={() => void handleShare()} variant="outline" size="lg" disabled={shareStatus === "creating"} className="w-full border-foreground/25 bg-foreground text-background hover:bg-foreground/85 hover:text-background">
+          {shareStatus === "creating" ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : shareStatus === "done" ? <Check data-icon="inline-start" /> : <ImageDown data-icon="inline-start" />}
+          {shareStatus === "creating" ? "Creating image" : shareStatus === "done" ? "Ready to share" : shareStatus === "error" ? "Try sharing again" : "Share result as image"}
+        </Button>
         <div className="flex gap-2">
           <Button onClick={onRetry} size="lg">
             <RefreshCw data-icon="inline-start" />

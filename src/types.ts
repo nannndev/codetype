@@ -63,6 +63,7 @@ export interface RunResult {
   snippetsCompleted: number;
   targetChars?: number;
   sourceType?: 'public' | 'custom';
+  wpmSnapshots?: number[];
 }
 
 export interface PersonalBest {
