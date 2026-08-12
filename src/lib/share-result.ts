@@ -149,19 +149,3 @@ export async function createResultCard({ result, username, heading, rank }: Shar
 
   return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Unable to generate image")), "image/png", 1));
 }
-
-export async function shareResultImage(options: ShareCardOptions): Promise<"shared" | "downloaded"> {
-  const blob = await createResultCard(options);
-  const file = new File([blob], `codetype-${Math.round(options.result.wpm)}wpm.png`, { type: "image/png" });
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: "My CodeType result", text: `${options.result.wpm.toFixed(1)} WPM on ${options.result.language}` });
-    return "shared";
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.name;
-  link.click();
-  URL.revokeObjectURL(url);
-  return "downloaded";
-}

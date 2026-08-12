@@ -6,7 +6,8 @@ import { getHistory, getStreak, getPersonalBests } from "@/utils/storage";
 import { Footer } from "@/components/Footer";
 import type { RunResult, HistoryFilter, TestMode } from "@/types";
 import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
-import { shareResultImage } from "@/lib/share-result";
+import type { ShareCardOptions } from "@/lib/share-result";
+import { SharePreviewDialog } from "@/components/SharePreviewDialog";
 
 function average(values: number[]): number {
   if (values.length === 0) return 0;
@@ -179,6 +180,7 @@ const LANGUAGE_OPTIONS = (() => {
 
 export default function History() {
   const { user } = useAuth();
+  const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const [languageFilter, setLanguageFilter] = useState(ALL_LANGUAGES);
   const [modeFilter, setModeFilter] = useState<TestMode | "all">("all");
   const [timeFilter, setTimeFilter] = useState<"all" | "30d" | "7d">("all");
@@ -376,7 +378,7 @@ export default function History() {
                     <div className="font-bold tabular-nums">{run.accuracy.toFixed(1)}%</div>
                     <div className="text-[10px] text-muted-foreground">accuracy</div>
                   </div>
-                  <button type="button" onClick={() => void shareResultImage({ result: run, username: user ? githubUsernameFromUser(user) || user.name || undefined : undefined, heading: "History highlight" })} className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Share this result"><Share2 className="size-3.5" /></button>
+                  <button type="button" onClick={() => setShareOptions({ result: run, username: user ? githubUsernameFromUser(user) || user.name || undefined : undefined, heading: "History highlight" })} className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Share this result"><Share2 className="size-3.5" /></button>
                 </div>
               ))}
             </div>
@@ -384,6 +386,7 @@ export default function History() {
         </main>
       </div>
       <Footer />
+      <SharePreviewDialog options={shareOptions} onClose={() => setShareOptions(null)} />
     </div>
   );
 }

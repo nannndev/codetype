@@ -6,7 +6,9 @@ import { getLanguages } from "@/data";
 import { listLeaderboard, listProfiles, type CloudProfile, type CloudRun } from "@/lib/cloud";
 import type { TestMode } from "@/types";
 import type { RunResult } from "@/types";
-import { shareResultImage } from "@/lib/share-result";
+import type { ShareCardOptions } from "@/lib/share-result";
+import { SharePreviewDialog } from "@/components/SharePreviewDialog";
+import { useAuth } from "@/components/AuthProvider";
 
 type Board = "global" | "mode" | "language";
 
@@ -34,6 +36,7 @@ function cloudRunAsResult(run: CloudRun): RunResult {
 }
 
 export default function Leaderboard() {
+  const { user } = useAuth();
   const [board, setBoard] = useState<Board>("global");
   const [language, setLanguage] = useState("JavaScript");
   const [mode, setMode] = useState<TestMode>("snippet");
@@ -42,6 +45,7 @@ export default function Leaderboard() {
   const [profiles, setProfiles] = useState<Map<string, CloudProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const languages = useMemo(() => getLanguages().filter((item) => item !== "All"), []);
 
   useEffect(() => {
@@ -146,7 +150,7 @@ export default function Leaderboard() {
                       <p className="text-[9px] uppercase tracking-widest text-muted-foreground">WPM</p>
                       <div className="mt-3 text-[10px] text-muted-foreground">{run.language} · {run.mode}</div>
                     </Link>
-                    <button type="button" onClick={() => void shareResultImage({ result: cloudRunAsResult(run), username: profile?.githubUsername || name, heading: boardTitle, rank: actualRank })} className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full border bg-background/70 text-muted-foreground transition-colors hover:text-foreground" aria-label={`Share rank ${actualRank}`}><Share2 className="size-3" /></button>
+                    {user?.$id === run.userId && <button type="button" onClick={() => setShareOptions({ result: cloudRunAsResult(run), username: profile?.githubUsername || name, heading: boardTitle, rank: actualRank })} className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full border bg-background/70 text-muted-foreground transition-colors hover:text-foreground" aria-label={`Share rank ${actualRank}`}><Share2 className="size-3" /></button>}
                     <div className={`absolute right-2 top-2 grid size-7 place-items-center rounded-full border text-xs font-bold ${first ? "bg-foreground text-background" : "bg-background/60"}`}>{actualRank}</div>
                   </article>
                 );
@@ -159,13 +163,14 @@ export default function Leaderboard() {
                 {remaining.map((run, index) => {
                   const name = displayName(run, profiles);
                   const profile = profiles.get(run.userId);
+                  const canShare = user?.$id === run.userId;
                   return <div key={run.$id} className="grid grid-cols-[48px_1fr_70px_70px_34px] items-center gap-2 border-b px-4 py-3 last:border-0 sm:grid-cols-[56px_1.4fr_1fr_90px_90px_34px]">
                     <span className="text-sm font-bold tabular-nums text-muted-foreground">#{index + 4}</span>
                     <Link to={`/profile/${run.userId}`} className="flex min-w-0 items-center gap-3 rounded-lg transition-opacity hover:opacity-70"><div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border bg-muted text-xs font-bold">{profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" className="size-full object-cover" /> : name.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><p className="truncate text-sm font-medium">{name}</p><p className="text-[10px] text-muted-foreground">View profile</p></div></Link>
                     <div className="hidden min-w-0 sm:block"><p className="truncate text-xs font-medium">{run.language}</p><p className="text-[10px] text-muted-foreground">{run.mode}{run.durationSeconds ? ` · ${run.durationSeconds}s` : ""}</p></div>
                     <div className="text-right"><p className="text-lg font-bold tabular-nums">{run.wpm.toFixed(1)}</p><p className="text-[9px] text-muted-foreground sm:hidden">{run.language}</p></div>
                     <span className="text-right text-sm font-medium tabular-nums">{run.accuracy.toFixed(1)}%</span>
-                    <button type="button" onClick={() => void shareResultImage({ result: cloudRunAsResult(run), username: profile?.githubUsername || name, heading: boardTitle, rank: index + 4 })} className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label={`Share rank ${index + 4}`}><Share2 className="size-3.5" /></button>
+                    {canShare ? <button type="button" onClick={() => setShareOptions({ result: cloudRunAsResult(run), username: profile?.githubUsername || name, heading: boardTitle, rank: index + 4 })} className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label={`Share rank ${index + 4}`}><Share2 className="size-3.5" /></button> : <span />}
                   </div>;
                 })}
               </section>
@@ -175,6 +180,7 @@ export default function Leaderboard() {
         <p className="mt-4 text-center text-xs text-muted-foreground">Community scores are public and not anti-cheat verified yet.</p>
       </div>
       <Footer />
+      <SharePreviewDialog options={shareOptions} onClose={() => setShareOptions(null)} />
     </div>
   );
 }

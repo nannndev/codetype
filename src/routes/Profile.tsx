@@ -1,11 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Activity, ArrowLeft, Cloud, CloudOff, ExternalLink, Flame, Gauge, GitBranch, LoaderCircle, Target, UserRound } from "lucide-react";
+import { Activity, ArrowLeft, Cloud, CloudOff, ExternalLink, Flame, Gauge, GitBranch, LoaderCircle, Share2, Target, UserRound } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { githubUsernameFromUser, useAuth } from "@/components/AuthProvider";
 import { getProfile, listUserRuns, type CloudProfile, type CloudRun } from "@/lib/cloud";
 import { getStreak } from "@/utils/storage";
+import type { ShareCardOptions } from "@/lib/share-result";
+import { SharePreviewDialog } from "@/components/SharePreviewDialog";
+import type { RunResult } from "@/types";
+
+function cloudRunAsResult(run: CloudRun): RunResult {
+  return {
+    language: run.language,
+    mode: run.mode,
+    duration: run.mode === "timed" && run.durationSeconds ? run.durationSeconds * 1000 : run.durationMs,
+    wpm: run.wpm,
+    rawWpm: run.rawWpm,
+    accuracy: run.accuracy,
+    consistency: run.consistency,
+    totalCorrect: run.correctChars,
+    charsTyped: run.keystrokes,
+    totalErrors: run.mistakes,
+    snippetsCompleted: run.snippetsCompleted,
+    timestamp: new Date(run.$createdAt).getTime(),
+    perLineStats: [],
+    errorPositions: [],
+    sourceRepo: run.sourceRepo,
+  };
+}
 
 function average(values: number[]): number {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
@@ -19,6 +42,7 @@ export default function Profile() {
   const [profile, setProfile] = useState<CloudProfile | null>(null);
   const [runs, setRuns] = useState<CloudRun[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const streak = useMemo(() => getStreak(), []);
 
   useEffect(() => {
@@ -47,6 +71,7 @@ export default function Profile() {
     runs.forEach((run) => counts.set(run.language, (counts.get(run.language) ?? 0) + 1));
     return Array.from(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
   }, [runs]);
+  const bestRun = useMemo(() => [...runs].sort((a, b) => b.wpm - a.wpm)[0], [runs]);
 
   const syncLabel = syncStatus === "syncing" ? "Syncing local history" : syncStatus === "error" ? "Sync needs retry" : "Cloud history synced";
   const SyncIcon = syncStatus === "syncing" ? LoaderCircle : syncStatus === "error" ? CloudOff : Cloud;
@@ -109,6 +134,7 @@ export default function Profile() {
                       <ExternalLink className="size-3" />
                     </a>
                   )}
+                  {bestRun && <button type="button" onClick={() => setShareOptions({ result: cloudRunAsResult(bestRun), username: resolvedGithubUsername || profile?.displayName || undefined, heading: "CodeType profile highlight" })} className="flex items-center gap-2 rounded-full border bg-foreground px-3.5 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"><Share2 className="size-3.5" /> Share profile stats</button>}
                 </div>
               </div>
             </section>
@@ -172,6 +198,7 @@ export default function Profile() {
         )}
       </div>
       <Footer />
+      <SharePreviewDialog options={shareOptions} onClose={() => setShareOptions(null)} />
     </div>
   );
 }
