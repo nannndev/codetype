@@ -8,6 +8,8 @@ import { LanguagePicker } from "@/components/LanguagePicker";
 import { ModeSelector } from "@/components/ModeSelector";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { useAuth } from "@/components/AuthProvider";
+import { uploadRun } from "@/lib/cloud";
 import { useGame } from "@/hooks";
 import { useSnippets } from "@/hooks/useSnippets";
 import { getLanguages } from "@/data";
@@ -24,6 +26,8 @@ import {
 import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 export default function App() {
+  const { user } = useAuth();
+  const userIdRef = useRef<string | null>(user?.$id ?? null);
   const [language, setLanguage] = useState("All");
   const [mode, setMode] = useState<TestMode>("snippet");
   const [duration, setDuration] = useState<TimedDuration | null>(null);
@@ -51,6 +55,10 @@ export default function App() {
   const [previousBest, setPreviousBest] = useState<PersonalBest | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration });
+
+  useEffect(() => {
+    userIdRef.current = user?.$id ?? null;
+  }, [user]);
 
   const focusWorkspace = useCallback(() => {
     requestAnimationFrame(() => containerRef.current?.focus({ preventScroll: true }));
@@ -112,6 +120,7 @@ export default function App() {
       try {
         saveResult(r);
         updateStreak();
+        if (userIdRef.current) void uploadRun(userIdRef.current, r).catch((error) => console.error("Unable to save cloud run", error));
       } catch {
         // localStorage may be unavailable
       }

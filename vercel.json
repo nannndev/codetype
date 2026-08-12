@@ -4,6 +4,7 @@
     { "source": "/statistics", "destination": "/index.html" },
     { "source": "/stats", "destination": "/index.html" },
     { "source": "/settings", "destination": "/index.html" },
-    { "source": "/leaderboard", "destination": "/index.html" }
+    { "source": "/leaderboard", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" }
   ]
 }

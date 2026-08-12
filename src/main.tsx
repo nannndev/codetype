@@ -8,6 +8,7 @@ import App from './App';
 import Settings from './routes/Settings';
 import History from './routes/History';
 import Leaderboard from './routes/Leaderboard';
+import Profile from './routes/Profile';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -23,6 +24,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/statistics" element={<History />} />
               <Route path="/stats" element={<History />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

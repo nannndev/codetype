@@ -36,6 +36,18 @@ export function saveResult(result: RunResult): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-500)));
 }
 
+export function ensureHistoryIds(): RunResult[] {
+  const history = getHistory();
+  let changed = false;
+  const normalized = history.map((result, index) => {
+    if (result.id) return result;
+    changed = true;
+    return { ...result, id: `${result.timestamp}-${index.toString(36)}` };
+  });
+  if (changed) localStorage.setItem(HISTORY_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
 export function getResults(): RunResult[] {
   return getHistory();
 }

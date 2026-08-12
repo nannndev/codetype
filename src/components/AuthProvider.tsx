@@ -9,11 +9,16 @@ import {
   signInWithGitHub,
   signOut as appwriteSignOut,
 } from "@/lib/appwrite";
+import { syncLocalRuns } from "@/lib/cloud";
+import { ensureHistoryIds, getStreak } from "@/utils/storage";
+
+export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
 interface AuthContextValue {
   user: Models.User<Models.Preferences> | null;
   loading: boolean;
   configured: boolean;
+  syncStatus: SyncStatus;
   login: () => void;
   logout: () => Promise<void>;
 }
@@ -41,6 +46,7 @@ async function ensureProfile(user: Models.User<Models.Preferences>): Promise<voi
     if (!(error instanceof AppwriteException) || error.code !== 404) throw error;
 
     const owner = Role.user(user.$id);
+    const streak = getStreak();
     await databases.createDocument({
       databaseId: appwriteConfig.databaseId,
       collectionId: appwriteConfig.profilesCollectionId,
@@ -48,8 +54,9 @@ async function ensureProfile(user: Models.User<Models.Preferences>): Promise<voi
       data: {
         githubUsername: githubUsernameFromUser(user),
         displayName: user.name || undefined,
-        currentStreak: 0,
-        bestStreak: 0,
+        currentStreak: streak.current,
+        bestStreak: streak.best,
+        lastActiveDate: streak.lastDate ? new Date(`${streak.lastDate}T12:00:00`).toISOString() : undefined,
       },
       permissions: [
         Permission.read(Role.any()),
@@ -63,6 +70,7 @@ async function ensureProfile(user: Models.User<Models.Preferences>): Promise<voi
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
   const [loading, setLoading] = useState(isAppwriteConfigured);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
 
   const refresh = useCallback(async () => {
     if (!account) {
@@ -74,6 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await ensureProfile(currentUser);
+      setSyncStatus("syncing");
+      void syncLocalRuns(currentUser.$id, ensureHistoryIds())
+        .then(() => setSyncStatus("synced"))
+        .catch((syncError) => {
+          console.error("Unable to sync local runs", syncError);
+          setSyncStatus("error");
+        });
     } catch (error) {
       if (error instanceof AppwriteException && error.code === 401) {
         setUser(null);
@@ -92,15 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await appwriteSignOut();
     setUser(null);
+    setSyncStatus("idle");
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
     loading,
     configured: isAppwriteConfigured,
+    syncStatus,
     login: signInWithGitHub,
     logout,
-  }), [user, loading, logout]);
+  }), [user, loading, syncStatus, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
