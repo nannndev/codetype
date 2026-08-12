@@ -5,9 +5,7 @@ import { Footer } from "@/components/Footer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const FONT_SIZE_OPTIONS: { value: FontSize; label: string }[] = [
-  { value: "sm", label: "S" },
-  { value: "md", label: "M" },
-  { value: "lg", label: "L" },
+  ...(["12", "14", "16", "18", "20", "22", "24"] as FontSize[]).map((value) => ({ value, label: `${value}px` })),
 ];
 
 const FONT_FAMILY_OPTIONS: { value: FontFamily; label: string; preview: string }[] = [
@@ -53,7 +51,7 @@ export default function Settings() {
                 <ToggleGroupItem
                   key={opt.value}
                   value={opt.value}
-                  className="h-10 w-14 rounded-lg text-sm transition-all duration-150 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                  className="h-10 min-w-14 rounded-lg px-3 text-xs transition-all duration-150 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
                 >
                   {opt.label}
                 </ToggleGroupItem>

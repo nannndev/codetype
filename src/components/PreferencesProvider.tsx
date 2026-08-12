@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-export type FontSize = "sm" | "md" | "lg";
+export type FontSize = "12" | "14" | "16" | "18" | "20" | "22" | "24";
 export type FontFamily = "jetbrains" | "fira" | "cascadia" | "source";
 export type CursorStyle = "block" | "underline" | "line";
+export type SnippetLength = "short" | "medium" | "long";
 
 export interface Preferences {
   fontSize: FontSize;
   fontFamily: FontFamily;
   cursorStyle: CursorStyle;
+  snippetLength: SnippetLength;
 }
 
 interface PreferencesContextValue {
@@ -20,15 +22,20 @@ const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 const STORAGE_KEY = "codetype-preferences";
 
 const DEFAULTS: Preferences = {
-  fontSize: "md",
+  fontSize: "16",
   fontFamily: "jetbrains",
   cursorStyle: "block",
+  snippetLength: "medium",
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
-  sm: "0.8125rem",
-  md: "0.875rem",
-  lg: "1rem",
+  "12": "12px",
+  "14": "14px",
+  "16": "16px",
+  "18": "18px",
+  "20": "20px",
+  "22": "22px",
+  "24": "24px",
 };
 
 const FONT_FAMILY_MAP: Record<FontFamily, string> = {
@@ -49,7 +56,8 @@ function loadPreferences(): Preferences {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...DEFAULTS, ...parsed };
+      const migratedFontSize = parsed.fontSize === "sm" ? "12" : parsed.fontSize === "md" ? "14" : parsed.fontSize === "lg" ? "16" : parsed.fontSize;
+      return { ...DEFAULTS, ...parsed, fontSize: migratedFontSize ?? DEFAULTS.fontSize };
     }
   } catch {
     // fall through

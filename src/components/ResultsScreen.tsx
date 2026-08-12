@@ -21,6 +21,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
   const isNewWpmRecord = previousBest ? result.wpm > previousBest.bestWpm : true;
   const isNewAccuracyRecord = previousBest ? result.accuracy > previousBest.bestAccuracy : true;
   const hasAnyRecord = isNewWpmRecord || isNewAccuracyRecord;
+  const isCustom = result.sourceType === "custom";
 
   return (
     <div className="mt-8 flex animate-fade-in-up flex-col gap-5">
@@ -34,7 +35,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
       {/* Hero Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="relative rounded-xl border bg-card p-6 text-center">
-          {isNewWpmRecord && (
+          {!isCustom && isNewWpmRecord && (
             <div className="absolute -top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
               <Trophy className="size-3" /> Record
             </div>
@@ -48,7 +49,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
           )}
         </div>
         <div className="relative rounded-xl border bg-card p-6 text-center">
-          {isNewAccuracyRecord && result.accuracy > 0 && (
+          {!isCustom && isNewAccuracyRecord && result.accuracy > 0 && (
             <div className="absolute -top-2 right-2 flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
               <Trophy className="size-3" /> Record
             </div>
@@ -63,7 +64,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
         </div>
       </div>
 
-      {hasAnyRecord && (
+      {!isCustom && hasAnyRecord && (
         <div className="flex justify-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
             <Trophy className="size-3.5" />
@@ -71,6 +72,8 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
           </span>
         </div>
       )}
+
+      {isCustom && <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">Local practice result · not added to history, streak, cloud sync, personal best, or leaderboard.</div>}
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-4 gap-2">

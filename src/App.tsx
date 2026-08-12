@@ -6,6 +6,8 @@ import { StatsBar } from "@/components/StatsBar";
 import { ResultsScreen } from "@/components/ResultsScreen";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { ModeSelector } from "@/components/ModeSelector";
+import { CustomPractice } from "@/components/CustomPractice";
+import { usePreferences } from "@/components/PreferencesProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/components/AuthProvider";
@@ -27,11 +29,14 @@ import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 export default function App() {
   const { user } = useAuth();
+  const { preferences, setPreference } = usePreferences();
   const userIdRef = useRef<string | null>(user?.$id ?? null);
   const [language, setLanguage] = useState("All");
   const [mode, setMode] = useState<TestMode>("snippet");
   const [duration, setDuration] = useState<TimedDuration | null>(null);
-  const { getRandomSnippet, loading: isLoadingSource } = useSnippets(language);
+  const [customSnippet, setCustomSnippet] = useState<import("@/types").Snippet | null>(null);
+  const { getRandomSnippet: getPublicSnippet, loading: isLoadingSource } = useSnippets(language, preferences.snippetLength);
+  const getRandomSnippet = useCallback(() => customSnippet ?? getPublicSnippet(), [customSnippet, getPublicSnippet]);
 
   const config = useMemo(() => ({ mode, duration }), [mode, duration]);
   const {
@@ -49,6 +54,7 @@ export default function App() {
     mistakes,
     errorHistory,
     completedCorrectChars,
+    loadSnippet,
   } = useGame({ config, getSnippet: getRandomSnippet });
 
   const [result, setResult] = useState<RunResult | null>(null);
@@ -113,11 +119,13 @@ export default function App() {
         errorPositions: errorHistory,
         snippetsCompleted,
         targetChars: snippet.code.length,
+        sourceType: snippet.sourceType ?? "public",
       };
       setResult(r);
-      const pb = getPersonalBest(r.language, r.mode, r.duration);
+      const isCustom = snippet.sourceType === "custom";
+      const pb = isCustom ? null : getPersonalBest(r.language, r.mode, r.duration);
       setPreviousBest(pb);
-      try {
+      if (!isCustom) try {
         saveResult(r);
         updateStreak();
         if (userIdRef.current) void uploadRun(userIdRef.current, r).catch((error) => console.error("Unable to save cloud run", error));
@@ -133,15 +141,10 @@ export default function App() {
     focusWorkspace();
   }, [reset, focusWorkspace]);
 
-  const handleNextSnippet = useCallback(() => {
-    setResult(null);
-    reset();
-    focusWorkspace();
-  }, [reset, focusWorkspace]);
-
   const handleLanguageChange = useCallback(
     (lang: string) => {
       setLanguage(lang);
+      setCustomSnippet(null);
       focusWorkspace();
     },
     [focusWorkspace],
@@ -151,6 +154,7 @@ export default function App() {
     (newMode: TestMode, newDuration: TimedDuration | null) => {
       setMode(newMode);
       setDuration(newDuration);
+      setCustomSnippet(null);
       focusWorkspace();
     },
     [focusWorkspace],
@@ -232,6 +236,37 @@ export default function App() {
 
   const languages = useMemo(() => getLanguages(), []);
 
+  const handleCustomSnippet = useCallback((nextSnippet: import("@/types").Snippet) => {
+    previousSelectionRef.current = { language: nextSnippet.language, mode: "snippet", duration: null };
+    setCustomSnippet(nextSnippet);
+    setLanguage(nextSnippet.language);
+    setMode("snippet");
+    setDuration(null);
+    setResult(null);
+    loadSnippet(nextSnippet);
+    focusWorkspace();
+  }, [loadSnippet, focusWorkspace]);
+
+  const exitCustomPractice = useCallback(() => {
+    setCustomSnippet(null);
+    setResult(null);
+    const nextSnippet = getPublicSnippet();
+    setLanguage("All");
+    previousSelectionRef.current = { language: "All", mode: "snippet", duration: null };
+    loadSnippet(nextSnippet);
+    focusWorkspace();
+  }, [getPublicSnippet, loadSnippet, focusWorkspace]);
+
+  const handleNextSnippet = useCallback(() => {
+    setResult(null);
+    if (customSnippet) {
+      exitCustomPractice();
+      return;
+    }
+    reset();
+    focusWorkspace();
+  }, [customSnippet, exitCustomPractice, reset, focusWorkspace]);
+
   return (
     <div
       ref={containerRef}
@@ -254,6 +289,18 @@ export default function App() {
               isRunningZen={mode === "zen" && status === "running"}
               onStopZen={handleZenStop}
             />
+
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <label className="flex flex-col gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Snippet length
+                <div className="flex gap-1 rounded-lg border bg-card/70 p-1">
+                  {(["short", "medium", "long"] as const).map((item) => <button key={item} type="button" disabled={status === "running" || Boolean(customSnippet)} onClick={() => setPreference("snippetLength", item)} className={`rounded-md px-3 py-1.5 text-[11px] font-medium capitalize transition-colors disabled:opacity-40 ${preferences.snippetLength === item ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"}`}>{item}</button>)}
+                </div>
+              </label>
+              <CustomPractice onLoad={handleCustomSnippet} />
+            </div>
+
+            {customSnippet && <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed bg-card/60 px-3 py-2 text-xs"><span><strong>Local practice</strong> · not saved or ranked</span><button type="button" onClick={exitCustomPractice} className="text-muted-foreground hover:text-foreground">Exit custom</button></div>}
 
             <StatsBar
               wpm={wpm}

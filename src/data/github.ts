@@ -177,11 +177,11 @@ export async function fetchSnippetsForLanguage(lang: string): Promise<Snippet[]>
             const ext = file.name.split('.').pop() ?? '';
             const fileLang = lang === 'Flutter' ? 'Flutter' : (extToLanguage(ext) ?? lang);
 
-            const lines = code.split('\n').slice(0, 25);
+            const lines = code.split('\n').slice(0, 60);
             const selectedLines: string[] = [];
             let length = 0;
             for (const line of lines) {
-              if (selectedLines.length > 0 && length + line.length + 1 > 600) break;
+              if (selectedLines.length > 0 && length + line.length + 1 > 2200) break;
               selectedLines.push(line);
               length += line.length + 1;
             }

@@ -22,6 +22,7 @@ interface UseGameReturn {
   mistakes: number;
   errorHistory: ErrorDetail[];
   completedCorrectChars: number;
+  loadSnippet: (snippet: Snippet) => void;
 }
 
 export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
@@ -190,6 +191,24 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     setInput('');
   }, [getSnippet]);
 
+  const loadSnippet = useCallback((next: Snippet) => {
+    clearTimers();
+    finishedRef.current = false;
+    correctCharsRef.current = 0;
+    completedCorrectCharsRef.current = 0;
+    typedAttemptsRef.current = 0;
+    setSnippet(next);
+    setInput('');
+    setStatus('idle');
+    setElapsedMs(0);
+    setWpmSnapshots([]);
+    setSnippetsCompleted(0);
+    setKeystrokes(0);
+    setMistakes(0);
+    setErrorHistory([]);
+    setCompletedCorrectChars(0);
+  }, [clearTimers]);
+
   useEffect(() => {
     return () => clearTimers();
   }, [clearTimers]);
@@ -210,5 +229,6 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     mistakes,
     errorHistory,
     completedCorrectChars,
+    loadSnippet,
   };
 }

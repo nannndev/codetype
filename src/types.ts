@@ -7,7 +7,10 @@ export interface Snippet {
     repo: string;
     url: string;
   };
+  sourceType?: 'public' | 'custom';
 }
+
+export type SnippetLength = 'short' | 'medium' | 'long';
 
 export type GameStatus = 'idle' | 'running' | 'finished';
 export type TestMode = 'snippet' | 'timed' | 'zen';
@@ -59,6 +62,7 @@ export interface RunResult {
   errorPositions: ErrorDetail[];
   snippetsCompleted: number;
   targetChars?: number;
+  sourceType?: 'public' | 'custom';
 }
 
 export interface PersonalBest {

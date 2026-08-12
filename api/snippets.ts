@@ -118,7 +118,7 @@ function selectSnippet(code: string): string | null {
 
   for (const line of sourceLines.slice(0, 80)) {
     if (line.length > 140) continue;
-    if (selected.length > 0 && (selected.length >= 25 || length + line.length + 1 > 700)) break;
+    if (selected.length > 0 && (selected.length >= 60 || length + line.length + 1 > 2200)) break;
     selected.push(line.replace(/\s+$/g, ''));
     length += line.length + 1;
   }
