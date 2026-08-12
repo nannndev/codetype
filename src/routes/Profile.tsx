@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Activity, ArrowLeft, Cloud, CloudOff, Flame, Gauge, GitBranch, LoaderCircle, Target, UserRound } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Activity, ArrowLeft, Cloud, CloudOff, ExternalLink, Flame, Gauge, GitBranch, LoaderCircle, Target, UserRound } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
@@ -13,26 +13,29 @@ function average(values: number[]): number {
 
 export default function Profile() {
   const { user, loading, configured, login, syncStatus } = useAuth();
+  const { userId } = useParams();
+  const viewedUserId = userId || user?.$id;
+  const isOwnProfile = Boolean(user && viewedUserId === user.$id);
   const [profile, setProfile] = useState<CloudProfile | null>(null);
   const [runs, setRuns] = useState<CloudRun[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const streak = useMemo(() => getStreak(), []);
 
   useEffect(() => {
-    if (!user) {
+    if (!viewedUserId) {
       setProfile(null);
       setRuns([]);
       return;
     }
     setDataLoading(true);
-    void Promise.all([getProfile(user.$id), listUserRuns(user.$id)])
+    void Promise.all([getProfile(viewedUserId), listUserRuns(viewedUserId)])
       .then(([nextProfile, nextRuns]) => {
         setProfile(nextProfile);
         setRuns(nextRuns);
       })
       .catch((error) => console.error("Unable to load cloud profile", error))
       .finally(() => setDataLoading(false));
-  }, [user, syncStatus]);
+  }, [viewedUserId, syncStatus]);
 
   const bestWpm = runs.length ? Math.max(...runs.map((run) => run.wpm)) : 0;
   const avgWpm = average(runs.map((run) => run.wpm));
@@ -53,7 +56,7 @@ export default function Profile() {
           <ArrowLeft className="size-4" /> Back to typing
         </Link>
 
-        {!user ? (
+        {!viewedUserId ? (
           <main className="mx-auto grid max-w-lg place-items-center rounded-2xl border bg-card/80 p-10 text-center backdrop-blur-sm">
             <div className="mb-5 grid size-16 place-items-center rounded-2xl border bg-muted/60"><UserRound className="size-7" /></div>
             <h1 className="text-2xl font-bold">Your CodeType profile</h1>
@@ -67,16 +70,14 @@ export default function Profile() {
               <div className="flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="-mt-9 flex items-end gap-4">
                   <div className="grid size-20 shrink-0 place-items-center rounded-2xl border-4 border-card bg-foreground text-2xl font-bold text-background">
-                    {(profile?.displayName || user.name || user.email).slice(0, 1).toUpperCase()}
+                    {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" className="size-full object-cover" /> : (profile?.displayName || user?.name || "?").slice(0, 1).toUpperCase()}
                   </div>
                   <div className="pb-1">
-                    <h1 className="text-2xl font-bold">{profile?.displayName || user.name || "Code typist"}</h1>
-                    <p className="text-sm text-muted-foreground">{profile?.githubUsername ? `@${profile.githubUsername}` : user.email}</p>
+                    <h1 className="text-2xl font-bold">{profile?.displayName || user?.name || "Code typist"}</h1>
+                    <p className="text-sm text-muted-foreground">{profile?.githubUsername ? `@${profile.githubUsername}` : isOwnProfile ? user?.email : "Community typist"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
-                  <SyncIcon className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} /> {syncLabel}
-                </div>
+                {isOwnProfile ? <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground"><SyncIcon className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} /> {syncLabel}</div> : profile?.githubUsername ? <a href={`https://github.com/${profile.githubUsername}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"><GitBranch className="size-3.5" /> GitHub <ExternalLink className="size-3" /></a> : null}
               </div>
             </section>
 
@@ -85,7 +86,7 @@ export default function Profile() {
                 ["Best WPM", bestWpm.toFixed(1), Gauge],
                 ["Avg. WPM", avgWpm.toFixed(1), Activity],
                 ["Accuracy", `${avgAccuracy.toFixed(1)}%`, Target],
-                ["Current streak", `${Math.max(profile?.currentStreak ?? 0, streak.current)}d`, Flame],
+                ["Current streak", `${isOwnProfile ? Math.max(profile?.currentStreak ?? 0, streak.current) : profile?.currentStreak ?? 0}d`, Flame],
               ].map(([label, value, Icon]) => (
                 <div key={String(label)} className="rounded-xl border bg-card/80 p-4">
                   <Icon className="mb-4 size-4 text-muted-foreground" />
@@ -101,7 +102,7 @@ export default function Profile() {
                 <dl className="mt-5 space-y-4 text-sm">
                   <div className="flex justify-between"><dt className="text-muted-foreground">Total runs</dt><dd className="font-bold tabular-nums">{runs.length}</dd></div>
                   <div className="flex justify-between"><dt className="text-muted-foreground">Favorite language</dt><dd className="font-bold">{favoriteLanguage}</dd></div>
-                  <div className="flex justify-between"><dt className="text-muted-foreground">Best streak</dt><dd className="font-bold tabular-nums">{Math.max(profile?.bestStreak ?? 0, streak.best)} days</dd></div>
+                  <div className="flex justify-between"><dt className="text-muted-foreground">Best streak</dt><dd className="font-bold tabular-nums">{isOwnProfile ? Math.max(profile?.bestStreak ?? 0, streak.best) : profile?.bestStreak ?? 0} days</dd></div>
                   <div className="flex justify-between"><dt className="text-muted-foreground">Leaderboard status</dt><dd className="font-bold">Community</dd></div>
                 </dl>
               </section>

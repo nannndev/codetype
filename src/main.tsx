@@ -25,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/stats" element={<History />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:userId" element={<Profile />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>

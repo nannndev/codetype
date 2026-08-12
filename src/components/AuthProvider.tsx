@@ -33,15 +33,59 @@ function githubUsernameFromUser(user: Models.User<Models.Preferences>): string |
   return undefined;
 }
 
+interface GitHubIdentityProfile {
+  login: string;
+  name: string | null;
+  avatar_url: string;
+}
+
+async function getGitHubProfile(): Promise<GitHubIdentityProfile | null> {
+  if (!account) return null;
+  try {
+    const identities = await account.listIdentities();
+    const github = identities.identities.find((identity) => identity.provider === "github");
+    if (!github?.providerAccessToken) return null;
+    const response = await fetch("https://api.github.com/user", {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${github.providerAccessToken}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    if (!response.ok) return null;
+    return await response.json() as GitHubIdentityProfile;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureProfile(user: Models.User<Models.Preferences>): Promise<void> {
   if (!databases) return;
 
+  const githubProfile = await getGitHubProfile();
+  const profileData = {
+    githubUsername: githubProfile?.login || githubUsernameFromUser(user),
+    displayName: githubProfile?.name || user.name || undefined,
+    avatarUrl: githubProfile?.avatar_url || undefined,
+  };
+
   try {
-    await databases.getDocument({
+    const existing = await databases.getDocument({
       databaseId: appwriteConfig.databaseId,
       collectionId: appwriteConfig.profilesCollectionId,
       documentId: user.$id,
     });
+    const needsUpdate = profileData.githubUsername !== existing.githubUsername
+      || profileData.displayName !== existing.displayName
+      || (profileData.avatarUrl && profileData.avatarUrl !== existing.avatarUrl);
+    if (needsUpdate) {
+      await databases.updateDocument({
+        databaseId: appwriteConfig.databaseId,
+        collectionId: appwriteConfig.profilesCollectionId,
+        documentId: user.$id,
+        data: profileData,
+      });
+    }
   } catch (error) {
     if (!(error instanceof AppwriteException) || error.code !== 404) throw error;
 
@@ -52,8 +96,7 @@ async function ensureProfile(user: Models.User<Models.Preferences>): Promise<voi
       collectionId: appwriteConfig.profilesCollectionId,
       documentId: user.$id,
       data: {
-        githubUsername: githubUsernameFromUser(user),
-        displayName: user.name || undefined,
+        ...profileData,
         currentStreak: streak.current,
         bestStreak: streak.best,
         lastActiveDate: streak.lastDate ? new Date(`${streak.lastDate}T12:00:00`).toISOString() : undefined,
