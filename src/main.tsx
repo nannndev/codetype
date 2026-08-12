@@ -18,6 +18,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<App />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/history" element={<History />} />
+            <Route path="/statistics" element={<History />} />
+            <Route path="/stats" element={<History />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Routes>
         </BrowserRouter>

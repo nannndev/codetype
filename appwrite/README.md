@@ -1,0 +1,29 @@
+# Appwrite Setup
+
+CodeType remains fully usable without Appwrite. Configure Appwrite only when public accounts, cloud history, and leaderboards are ready to be enabled.
+
+## Project
+
+1. Create an Appwrite Cloud project.
+2. Add a Web platform for each allowed hostname:
+   - `localhost`
+   - the production Vercel domain
+3. Copy the project ID into `VITE_APPWRITE_PROJECT_ID`.
+4. Keep the default endpoint `https://cloud.appwrite.io/v1`, or replace it for a self-hosted instance.
+
+## GitHub OAuth
+
+1. In Appwrite, open **Auth -> Settings -> OAuth2 Providers -> GitHub**.
+2. Create a GitHub OAuth App at <https://github.com/settings/developers>.
+3. Copy the callback URL shown by Appwrite into the GitHub OAuth App authorization callback field.
+4. Add the GitHub Client ID and Client Secret to Appwrite. The secret belongs in Appwrite, never in Vite environment variables.
+
+The frontend helper `signInWithGitHub()` is available in `src/lib/appwrite.ts`.
+
+## Database
+
+Create a database with ID `codetype`, then create the collections described in `schema.md`. Collection IDs can be changed through the Vite environment variables in `.env.example`.
+
+## Server API key
+
+Future verified run submission should happen in Vercel functions using `APPWRITE_API_KEY`. Never give the browser permission to mark a run as verified.

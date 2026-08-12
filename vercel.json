@@ -1,6 +1,9 @@
 {
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/history", "destination": "/index.html" },
+    { "source": "/statistics", "destination": "/index.html" },
+    { "source": "/stats", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" },
+    { "source": "/leaderboard", "destination": "/index.html" }
   ]
 }
