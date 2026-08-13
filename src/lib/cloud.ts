@@ -1,5 +1,5 @@
 import { AppwriteException, Permission, Query, Role, type Models } from "appwrite";
-import type { RunResult, Settings, TestMode } from "@/types";
+import type { RunResult, Settings, SnippetLength, TestMode } from "@/types";
 import { account, appwriteConfig, databases } from "@/lib/appwrite";
 
 // Keep the pre-rename key to retain existing sync markers.
@@ -30,6 +30,7 @@ export interface CloudRun extends Models.Document {
   snippetsCompleted: number;
   sourceRepo?: string;
   verified: boolean;
+  snippetLength?: SnippetLength;
 }
 
 function runKey(run: RunResult): string {
@@ -82,6 +83,7 @@ function runData(userId: string, run: RunResult): Record<string, unknown> {
     verified: false,
   };
   if (run.mode === "timed") data.durationSeconds = Math.max(1, Math.round(run.duration / 1000));
+  if (run.mode === "snippet" && run.snippetLength) data.snippetLength = run.snippetLength;
   if (run.sourceRepo) data.sourceRepo = run.sourceRepo;
   return data;
 }
@@ -93,13 +95,21 @@ export async function uploadRun(userId: string, run: RunResult): Promise<void> {
 
   try {
     const owner = Role.user(userId);
-    await databases.createDocument({
+    const request = {
       databaseId: appwriteConfig.databaseId,
       collectionId: appwriteConfig.runsCollectionId,
       documentId: documentId(userId, run),
-      data: runData(userId, run),
       permissions: [Permission.read(Role.any()), Permission.update(owner), Permission.delete(owner)],
-    });
+    };
+    try {
+      await databases.createDocument({ ...request, data: runData(userId, run) });
+    } catch (error) {
+      // Keep cloud history working during the short schema rollout window.
+      if (!(error instanceof AppwriteException) || error.code !== 400 || !run.snippetLength) throw error;
+      const legacyData = runData(userId, run);
+      delete legacyData.snippetLength;
+      await databases.createDocument({ ...request, data: legacyData });
+    }
   } catch (error) {
     if (!(error instanceof AppwriteException) || error.code !== 409) throw error;
   }
@@ -165,6 +175,7 @@ export async function listLeaderboard(filters: {
   language?: string;
   mode?: TestMode;
   durationSeconds?: number;
+  snippetLength?: SnippetLength;
 } = {}): Promise<CloudRun[]> {
   if (!databases) return [];
   const queries = [Query.orderDesc("wpm"), Query.limit(100)];
@@ -173,6 +184,7 @@ export async function listLeaderboard(filters: {
   if (filters.mode === "timed" && filters.durationSeconds) {
     queries.unshift(Query.equal("durationSeconds", filters.durationSeconds));
   }
+  if (filters.mode === "snippet" && filters.snippetLength) queries.unshift(Query.equal("snippetLength", filters.snippetLength));
   try {
     const response = await databases.listDocuments<CloudRun>({
       databaseId: appwriteConfig.databaseId,
@@ -192,6 +204,7 @@ export async function listLeaderboard(filters: {
       if (filters.language && run.language !== filters.language) return false;
       if (filters.mode && run.mode !== filters.mode) return false;
       if (filters.mode === "timed" && filters.durationSeconds && run.durationSeconds !== filters.durationSeconds) return false;
+      if (filters.mode === "snippet" && filters.snippetLength && run.snippetLength !== filters.snippetLength) return false;
       return true;
     }).slice(0, 100);
   }

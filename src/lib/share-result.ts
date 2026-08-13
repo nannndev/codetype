@@ -130,7 +130,7 @@ export async function createResultCard({ result, username, heading, rank }: Shar
     ["Accuracy", `${result.accuracy.toFixed(1)}%`],
     ["Consistency", `${result.consistency.toFixed(1)}%`],
     ["Language", result.language],
-    ["Mode", result.mode === "timed" ? `${Math.round(result.duration / 1000)}s timed` : result.mode],
+    ["Mode", result.mode === "timed" ? `${Math.round(result.duration / 1000)}s timed` : result.mode === "snippet" && result.snippetLength ? `${result.snippetLength} snippet` : result.mode],
   ];
   stats.forEach(([name, value], index) => {
     const y = 210 + index * 78;

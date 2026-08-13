@@ -27,6 +27,7 @@ function cloudRunAsResult(run: CloudRun): RunResult {
     perLineStats: [],
     errorPositions: [],
     sourceRepo: run.sourceRepo,
+    snippetLength: run.snippetLength,
   };
 }
 

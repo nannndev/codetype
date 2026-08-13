@@ -1,6 +1,7 @@
-import type { RunResult, PersonalBest } from "@/types";
+import type { RunResult, PersonalBest, Snippet } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ErrorHeatmap } from "@/components/ErrorHeatmap";
+import { WeakKeys } from "@/components/WeakKeys";
 import { useState } from "react";
 import { RefreshCw, ArrowRight, Trophy, ImageDown } from "lucide-react";
 import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
@@ -12,9 +13,10 @@ interface ResultsScreenProps {
   previousBest: PersonalBest | null;
   onRetry: () => void;
   onNext: () => void;
+  onDrill: (snippet: Snippet) => void;
 }
 
-export function ResultsScreen({ result, previousBest, onRetry, onNext }: ResultsScreenProps) {
+export function ResultsScreen({ result, previousBest, onRetry, onNext, onDrill }: ResultsScreenProps) {
   const { user } = useAuth();
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const modeLabel =
@@ -22,7 +24,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
       ? `${result.duration / 1000}s`
       : result.mode === 'zen'
         ? 'Zen'
-        : 'Snippet';
+        : `${result.snippetLength ? `${result.snippetLength.charAt(0).toUpperCase()}${result.snippetLength.slice(1)} ` : ''}Snippet`;
 
   const isNewWpmRecord = previousBest ? result.wpm > previousBest.bestWpm : true;
   const isNewAccuracyRecord = previousBest ? result.accuracy > previousBest.bestAccuracy : true;
@@ -145,6 +147,9 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext }: Results
           </div>
         </div>
       )}
+
+      {/* Keyed on timestamp so the panel re-reads history after this run is saved. */}
+      <WeakKeys refreshKey={result.timestamp} onDrill={onDrill} />
 
       {/* CTAs */}
       <div className="flex flex-col items-center gap-2">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Code2, ExternalLink, FileCode2, GitBranch, Minus, Plus } from "lucide-react";
+import { Code2, ExternalLink, FileCode2, GitBranch, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { usePreferences } from "@/components/PreferencesProvider";
@@ -13,6 +13,11 @@ interface CodeDisplayProps {
   source?: { repo: string; url: string };
   input: string;
   onClick: () => void;
+  focusMode?: boolean;
+  onFocusModeChange?: (active: boolean) => void;
+  focusStats?: { wpm: number; accuracy: number; time: string };
+  onRestart?: () => void;
+  isRunning?: boolean;
 }
 
 type CursorPref = "block" | "underline" | "line";
@@ -48,7 +53,7 @@ const CURSOR_COMPONENTS: Record<CursorPref, React.FC<{ char: string; syntax: Syn
   line: LineCursor,
 };
 
-export function CodeDisplay({ chars, filename, language, source, input, onClick }: CodeDisplayProps) {
+export function CodeDisplay({ chars, filename, language, source, input, onClick, focusMode = false, onFocusModeChange, focusStats, onRestart, isRunning = false }: CodeDisplayProps) {
   const { preferences, setPreference } = usePreferences();
   const cursorStyle = preferences.cursorStyle as CursorPref;
   const CursorComponent = CURSOR_COMPONENTS[cursorStyle];
@@ -115,18 +120,35 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick 
     viewport.scrollTo({ top: Math.max(0, top), left: Math.max(0, left), behavior: "instant" });
   }, [input, preferences.fontSize]);
 
+  useEffect(() => {
+    if (!focusMode) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [focusMode]);
+
+  const centerCursor = () => {
+    cursorRef.current?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    onClick();
+  };
+
+  const restartFromChrome = () => {
+    if (isRunning && !window.confirm("Restart this typing run? Current progress will be lost.")) return;
+    onRestart?.();
+  };
+
   return (
     <div
-      className="code-window overflow-hidden rounded-2xl border shadow-xl focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background transition-shadow duration-200"
+      className={cn("code-window overflow-hidden rounded-2xl border shadow-xl focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background transition-all duration-200", focusMode && "code-window-focus")}
       onClick={onClick}
       tabIndex={0}
     >
       {/* Title bar */}
       <div className="code-chrome flex items-center gap-3 border-b px-4 py-2.5 select-none">
-        <div className="flex gap-1.5 shrink-0">
-          <span className="size-2.5 rounded-full bg-red-400/70" />
-          <span className="size-2.5 rounded-full bg-yellow-400/70" />
-          <span className="size-2.5 rounded-full bg-green-400/70" />
+        <div className="editor-window-actions flex shrink-0 gap-1.5" onClick={(event) => event.stopPropagation()}>
+          <button type="button" onClick={restartFromChrome} className="editor-window-dot bg-red-400/80" aria-label="Restart typing run" title="Restart run"><span>×</span></button>
+          <button type="button" onClick={centerCursor} className="editor-window-dot bg-yellow-400/80" aria-label="Center active cursor" title="Center active cursor"><span>−</span></button>
+          <button type="button" onClick={() => onFocusModeChange?.(!focusMode)} className="editor-window-dot bg-green-400/80" aria-label={focusMode ? "Exit focus mode" : "Enter focus mode"} title={focusMode ? "Exit focus mode" : "Focus mode"}><span>{focusMode ? "−" : "+"}</span></button>
         </div>
         <FileCode2 aria-hidden="true" className="size-3.5 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
@@ -135,6 +157,10 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick 
         <Badge variant="secondary" className="shrink-0 text-[10px]">
           {language}
         </Badge>
+        {focusMode && focusStats && <div className="hidden items-center gap-3 border-l pl-3 text-[10px] tabular-nums text-muted-foreground sm:flex"><span><strong className="text-foreground">{focusStats.wpm.toFixed(1)}</strong> WPM</span><span><strong className="text-foreground">{focusStats.accuracy.toFixed(1)}%</strong> ACC</span><span>{focusStats.time}</span></div>}
+        <button type="button" onClick={(event) => { event.stopPropagation(); onFocusModeChange?.(!focusMode); }} className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label={focusMode ? "Exit focus mode" : "Expand editor to focus mode"} title={focusMode ? "Exit focus mode (Esc)" : "Focus mode"}>
+          {focusMode ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+        </button>
       </div>
 
       {/* Code area */}
@@ -186,6 +212,7 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick 
           <span className="flex items-center gap-1.5"><Code2 aria-hidden="true" className="size-3" /> Built-in snippet</span>
         )}
         <div className="flex shrink-0 items-center gap-3">
+          {focusMode && <span className="hidden sm:inline">Esc to exit focus</span>}
           <span>Ln {currentLineIndex + 1}, Col {cursorCol}</span>
           <span className="h-3 w-px bg-border" />
           <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>

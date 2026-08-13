@@ -5,6 +5,22 @@ export type FontFamily = "jetbrains" | "fira" | "cascadia" | "source";
 export type CursorStyle = "block" | "underline" | "line";
 export type SnippetLength = "short" | "medium" | "long";
 export type EditorTheme = "codey" | "tokyo" | "catppuccin" | "github" | "dracula";
+export type AppShortcut = "mod+r" | "mod+shift+r" | "mod+f" | "mod+shift+f" | "mod+enter";
+export type KeyboardSoundProfile = "linear" | "tactile" | "clicky" | "thock" | "custom";
+export type SoundBaseProfile = Exclude<KeyboardSoundProfile, "custom">;
+
+/**
+ * Macro controls for the "custom" profile. Each value is 0-100 with 50 meaning
+ * "leave the base preset alone", so every position maps to a usable keyboard
+ * rather than exposing raw synth parameters that mostly sound broken.
+ */
+export interface KeyboardSoundTuning {
+  base: SoundBaseProfile;
+  tone: number;
+  click: number;
+  damping: number;
+  upstroke: number;
+}
 
 export interface Preferences {
   fontSize: FontSize;
@@ -13,7 +29,20 @@ export interface Preferences {
   snippetLength: SnippetLength;
   editorTheme: EditorTheme;
   keyboardSound: boolean;
+  keyboardSoundProfile: KeyboardSoundProfile;
+  keyboardSoundVolume: number;
+  keyboardSoundTuning: KeyboardSoundTuning;
+  restartShortcut: AppShortcut;
+  focusShortcut: AppShortcut;
 }
+
+export const DEFAULT_SOUND_TUNING: KeyboardSoundTuning = {
+  base: "thock",
+  tone: 50,
+  click: 50,
+  damping: 50,
+  upstroke: 50,
+};
 
 interface PreferencesContextValue {
   preferences: Preferences;
@@ -32,6 +61,11 @@ const DEFAULTS: Preferences = {
   snippetLength: "medium",
   editorTheme: "codey",
   keyboardSound: false,
+  keyboardSoundProfile: "thock",
+  keyboardSoundVolume: 45,
+  keyboardSoundTuning: DEFAULT_SOUND_TUNING,
+  restartShortcut: "mod+r",
+  focusShortcut: "mod+shift+f",
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
@@ -64,7 +98,14 @@ function loadPreferences(): Preferences {
     if (raw) {
       const parsed = JSON.parse(raw);
       const migratedFontSize = parsed.fontSize === "sm" ? "12" : parsed.fontSize === "md" ? "14" : parsed.fontSize === "lg" ? "16" : parsed.fontSize;
-      return { ...DEFAULTS, ...parsed, fontSize: migratedFontSize ?? DEFAULTS.fontSize };
+      return {
+        ...DEFAULTS,
+        ...parsed,
+        fontSize: migratedFontSize ?? DEFAULTS.fontSize,
+        // Nested object, so a shallow spread would let a partial or absent
+        // tuning through and leave individual knobs undefined.
+        keyboardSoundTuning: { ...DEFAULT_SOUND_TUNING, ...(parsed.keyboardSoundTuning ?? {}) },
+      };
     }
   } catch {
     // fall through

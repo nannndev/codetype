@@ -160,7 +160,8 @@ export function getPersonalBests(): PersonalBest[] {
   const map = new Map<string, PersonalBest>();
 
   for (const run of history) {
-    const key = `${run.language}|${run.mode}|${run.duration ?? 0}`;
+    const lengthKey = run.mode === 'snippet' ? run.snippetLength ?? 'legacy' : '-';
+    const key = `${run.language}|${run.mode}|${run.duration ?? 0}|${lengthKey}`;
     const existing = map.get(key);
 
     if (!existing) {
@@ -168,6 +169,7 @@ export function getPersonalBests(): PersonalBest[] {
         language: run.language,
         mode: run.mode,
         duration: run.duration ?? null,
+        snippetLength: run.snippetLength,
         bestWpm: run.wpm,
         bestAccuracy: run.accuracy,
         bestConsistency: run.consistency,
@@ -190,11 +192,14 @@ export function getPersonalBest(
   language: string,
   mode: TestMode,
   duration: number | null,
+  snippetLength?: RunResult['snippetLength'],
 ): PersonalBest | null {
-  const key = `${language}|${mode}|${duration ?? 0}`;
+  const lengthKey = mode === 'snippet' ? snippetLength ?? 'legacy' : '-';
+  const key = `${language}|${mode}|${duration ?? 0}|${lengthKey}`;
   const all = getPersonalBests();
   return all.find((pb) => {
-    const pbKey = `${pb.language}|${pb.mode}|${pb.duration ?? 0}`;
+    const pbLengthKey = pb.mode === 'snippet' ? pb.snippetLength ?? 'legacy' : '-';
+    const pbKey = `${pb.language}|${pb.mode}|${pb.duration ?? 0}|${pbLengthKey}`;
     return pbKey === key;
   }) ?? null;
 }

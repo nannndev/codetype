@@ -61,7 +61,8 @@ export default function App() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [previousBest, setPreviousBest] = useState<PersonalBest | null>(null);
   const [goalRefreshKey, setGoalRefreshKey] = useState(0);
-  const playKeyboardSound = useKeyboardSound(preferences.keyboardSound);
+  const [editorFocusMode, setEditorFocusMode] = useState(false);
+  const playKeyboardSound = useKeyboardSound(preferences.keyboardSound, preferences.keyboardSoundProfile, preferences.keyboardSoundVolume, preferences.keyboardSoundTuning);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration });
 
@@ -124,10 +125,11 @@ export default function App() {
         targetChars: snippet.code.length,
         sourceType: snippet.sourceType ?? "public",
         wpmSnapshots,
+        snippetLength: config.mode === "snippet" ? preferences.snippetLength : undefined,
       };
       setResult(r);
       const isCustom = snippet.sourceType === "custom";
-      const pb = isCustom ? null : getPersonalBest(r.language, r.mode, r.duration);
+      const pb = isCustom ? null : getPersonalBest(r.language, r.mode, r.duration, r.snippetLength);
       setPreviousBest(pb);
       if (!isCustom) try {
         saveResult(r);
@@ -175,8 +177,29 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      const modifier = e.metaKey || e.ctrlKey;
+      const shortcut = modifier
+        ? `mod+${e.shiftKey ? "shift+" : ""}${e.key.toLowerCase()}`
+        : "";
+
+      if (shortcut === preferences.focusShortcut) {
+        e.preventDefault();
+        setEditorFocusMode((active) => !active);
+        return;
+      }
+
+      if (shortcut === preferences.restartShortcut) {
+        e.preventDefault();
+        handleRetry();
+        return;
+      }
+
       if (e.key === "Escape") {
         e.preventDefault();
+        if (editorFocusMode) {
+          setEditorFocusMode(false);
+          return;
+        }
         handleRetry();
         return;
       }
@@ -209,6 +232,7 @@ export default function App() {
           stop();
           return;
         }
+        playKeyboardSound("Tab");
         engineHandleKey(" ");
         engineHandleKey(" ");
         return;
@@ -220,7 +244,7 @@ export default function App() {
         engineHandleKey("\n");
       }
     },
-    [status, mode, engineHandleKey, handleRetry, stop, playKeyboardSound],
+    [status, mode, engineHandleKey, handleRetry, stop, playKeyboardSound, editorFocusMode, preferences.focusShortcut, preferences.restartShortcut],
   );
 
   const charStates = useMemo(() => computeCharStates(snippet.code, input), [snippet.code, input]);
@@ -288,7 +312,7 @@ export default function App() {
         <Header />
 
         {result ? (
-          <ResultsScreen result={result} previousBest={previousBest} onRetry={handleRetry} onNext={handleNextSnippet} />
+          <ResultsScreen result={result} previousBest={previousBest} onRetry={handleRetry} onNext={handleNextSnippet} onDrill={handleCustomSnippet} />
         ) : (
           <main className="mt-8 flex flex-col gap-6 animate-scale-in">
             <ModeSelector
@@ -310,7 +334,7 @@ export default function App() {
               <CustomPractice onLoad={handleCustomSnippet} />
             </div>
 
-            {customSnippet && <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed bg-card/60 px-3 py-2 text-xs"><span><strong>Local practice</strong> · not saved or ranked</span><button type="button" onClick={exitCustomPractice} className="text-muted-foreground hover:text-foreground">Exit custom</button></div>}
+            {customSnippet && <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed bg-card/60 px-3 py-2 text-xs"><span><strong>{customSnippet.id.startsWith("drill-") ? "Weak-key drill" : "Local practice"}</strong> · not saved or ranked</span><button type="button" onClick={exitCustomPractice} className="text-muted-foreground hover:text-foreground">Exit {customSnippet.id.startsWith("drill-") ? "drill" : "custom"}</button></div>}
 
             <StatsBar
               wpm={wpm}
@@ -338,6 +362,15 @@ export default function App() {
               source={snippet.source}
               input={input}
               onClick={() => containerRef.current?.focus()}
+              focusMode={editorFocusMode}
+              onFocusModeChange={(active) => { setEditorFocusMode(active); focusWorkspace(); }}
+              focusStats={{
+                wpm,
+                accuracy,
+                time: mode === "timed" ? `${secondsRemaining}s left` : `${(elapsedMs / 1000).toFixed(1)}s`,
+              }}
+              onRestart={handleRetry}
+              isRunning={status === "running"}
             />
 
             <DailyGoals refreshKey={goalRefreshKey} compact />

@@ -64,12 +64,14 @@ export interface RunResult {
   targetChars?: number;
   sourceType?: 'public' | 'custom';
   wpmSnapshots?: number[];
+  snippetLength?: SnippetLength;
 }
 
 export interface PersonalBest {
   language: string;
   mode: TestMode;
   duration: number | null;
+  snippetLength?: SnippetLength;
   bestWpm: number;
   bestAccuracy: number;
   bestConsistency: number;

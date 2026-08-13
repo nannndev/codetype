@@ -57,6 +57,7 @@ const LANGUAGE_CONFIG: Record<string, {
 };
 
 const EXCLUDED_PATHS = /(^|\/)(test|tests|fixtures|generated|vendor|dist|build|examples?|benchmarks?|migrations?|snapshots?)(\/|$)|\.min\.|\.generated\.|\.g\./i;
+const LINE_COMMENT = /^\s*(\/\/|#(?!\!)|--)(?:\s|$)/;
 
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -113,18 +114,43 @@ async function discoverRepos(language: string): Promise<RepoCandidate[]> {
 
 function selectSnippet(code: string): string | null {
   const sourceLines = code.replace(/\r\n/g, '\n').split('\n');
-  const selected: string[] = [];
-  let length = 0;
+  let inBlock = false;
+  const flags = sourceLines.map((line) => {
+    const trimmed = line.trim();
+    if (inBlock) {
+      if (trimmed.includes('*/')) inBlock = false;
+      return true;
+    }
+    if (trimmed.startsWith('/*')) {
+      if (!trimmed.includes('*/', 2)) inBlock = true;
+      return true;
+    }
+    return LINE_COMMENT.test(line);
+  });
+  let best: { score: number; code: string } | null = null;
 
-  for (const line of sourceLines.slice(0, 80)) {
-    if (line.length > 140) continue;
-    if (selected.length > 0 && (selected.length >= 60 || length + line.length + 1 > 2200)) break;
-    selected.push(line.replace(/\s+$/g, ''));
-    length += line.length + 1;
+  for (let windowStart = 0; windowStart < sourceLines.length; windowStart += 8) {
+    const selected: Array<{ line: string; comment: boolean }> = [];
+    let length = 0;
+    for (let index = windowStart; index < Math.min(sourceLines.length, windowStart + 70); index += 1) {
+      const line = sourceLines[index].replace(/\s+$/g, '');
+      if (line.length > 140) continue;
+      if (selected.length > 0 && (selected.length >= 60 || length + line.length + 1 > 2200)) break;
+      selected.push({ line, comment: flags[index] });
+      length += line.length + 1;
+    }
+    while (selected.length && (!selected[0].line.trim() || selected[0].comment)) selected.shift();
+    while (selected.length && !selected[selected.length - 1].line.trim()) selected.pop();
+    const comments = selected.filter((item) => item.comment).length;
+    const codeLines = selected.filter((item) => item.line.trim() && !item.comment).length;
+    const meaningful = comments + codeLines;
+    const snippet = selected.map((item) => item.line).join('\n').trim();
+    if (snippet.length < 80 || codeLines < 5 || !meaningful || comments / meaningful > 0.3) continue;
+    const score = codeLines * 5 + Math.min(snippet.length, 2200) / 100 - comments * 7;
+    if (!best || score > best.score) best = { score, code: snippet };
   }
 
-  const snippet = selected.join('\n').trim();
-  return snippet.length >= 80 ? snippet : null;
+  return best?.code ?? null;
 }
 
 async function snippetsFromRepo(language: string, candidate: RepoCandidate): Promise<DynamicSnippet[]> {

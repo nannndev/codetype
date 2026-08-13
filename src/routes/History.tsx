@@ -342,7 +342,7 @@ export default function History() {
                         <div className="min-w-0">
                           <span className="truncate font-medium">{pb.language}</span>
                           <span className="ml-1.5 text-[10px] text-muted-foreground">
-                            {pb.mode}{pb.duration ? ` ${pb.duration}s` : ""}
+                            {pb.mode}{pb.snippetLength ? ` · ${pb.snippetLength}` : ""}{pb.duration ? ` ${pb.duration}s` : ""}
                           </span>
                         </div>
                         <span className="text-right font-bold tabular-nums">{pb.bestWpm.toFixed(1)}</span>

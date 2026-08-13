@@ -21,3 +21,6 @@ export {
   getPersonalBests,
   getPersonalBest,
 } from './storage';
+export { analyseWeakKeys, describeChar } from './weak-keys';
+export type { WeakKey, WeakKeyReport, ConfusionPair } from './weak-keys';
+export { buildDrillSnippet } from './drill';

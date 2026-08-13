@@ -170,6 +170,34 @@ html {
   box-shadow: 0 10px 30px hsl(0 0% 0% / 0.28);
 }
 
+.rank-mark {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--muted-foreground);
+  font-family: var(--code-font-family);
+}
+
+.rank-mark svg { width: 100%; height: 100%; overflow: visible; }
+.rank-mark-lg { width: 48px; height: 54px; }
+.rank-mark-sm { width: 34px; height: 38px; }
+.rank-mark-frame { fill: color-mix(in oklab, currentColor 7%, transparent); stroke: currentColor; stroke-width: 2; }
+.rank-mark-code { fill: none; stroke: currentColor; stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
+.rank-mark-terminal { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; opacity: .45; }
+.rank-mark strong { position: absolute; bottom: -1px; min-width: 20px; padding: 1px 4px; border: 1px solid currentColor; border-radius: 999px; background: var(--background); color: inherit; font-size: 10px; line-height: 15px; text-align: center; font-variant-numeric: tabular-nums; }
+.rank-mark-first { color: var(--foreground); filter: drop-shadow(0 8px 16px color-mix(in oklab, var(--foreground) 18%, transparent)); }
+.rank-mark-first .rank-mark-frame { fill: var(--foreground); }
+.rank-mark-first .rank-mark-code, .rank-mark-first .rank-mark-terminal { stroke: var(--background); }
+.rank-mark-first strong { background: var(--foreground); color: var(--background); }
+.rank-mark-list .rank-mark-code { display: none; }
+.rank-mark-list .rank-mark-terminal { transform: translateY(-7px); }
+.rank-mark-list strong { bottom: 7px; border: 0; background: transparent; font-size: 11px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  article:hover .rank-mark-podium { transform: translateY(-2px) rotate(-1deg); transition: transform 180ms ease; }
+}
+
 .code-window {
   --editor-bg: hsl(0 0% 8%);
   --editor-chrome: hsl(0 0% 11%);
@@ -191,6 +219,28 @@ html {
 }
 
 .code-chrome { background: var(--editor-chrome); border-color: var(--editor-border); }
+
+.editor-window-dot {
+  display: grid;
+  width: 11px;
+  height: 11px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: hsl(0 0% 8%);
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.editor-window-dot span { opacity: 0; transform: translateY(-.5px); }
+.editor-window-actions:hover .editor-window-dot span,
+.editor-window-dot:focus-visible span { opacity: .75; }
+.editor-window-dot:hover { filter: saturate(1.25) brightness(1.1); transform: scale(1.12); }
+.editor-window-dot:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; }
 
 [data-editor-theme="tokyo"] .code-window {
   --editor-bg: #1a1b26; --editor-chrome: #16161e; --editor-border: #343b58;
@@ -217,6 +267,39 @@ html {
   height: clamp(20rem, 48vh, 32rem);
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.code-window-focus {
+  position: fixed;
+  inset: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  box-shadow: 0 30px 100px hsl(0 0% 0% / 0.55);
+}
+
+.code-window-focus::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in oklab, var(--background) 92%, black);
+}
+
+.code-window-focus .code-viewport {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  padding-block: clamp(1.5rem, 5vh, 4rem);
+}
+
+.code-window-focus .code-row {
+  grid-template-columns: 4.5rem minmax(max-content, 1fr);
+}
+
+@media (min-width: 768px) {
+  .code-window-focus { inset: 24px; }
 }
 
 .code-viewport::-webkit-scrollbar { width: 10px; height: 10px; }
