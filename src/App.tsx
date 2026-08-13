@@ -7,12 +7,13 @@ import { ResultsScreen } from "@/components/ResultsScreen";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { ModeSelector } from "@/components/ModeSelector";
 import { CustomPractice } from "@/components/CustomPractice";
+import { DailyGoals } from "@/components/DailyGoals";
 import { usePreferences } from "@/components/PreferencesProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/components/AuthProvider";
 import { uploadRun } from "@/lib/cloud";
-import { useGame } from "@/hooks";
+import { useGame, useKeyboardSound } from "@/hooks";
 import { useSnippets } from "@/hooks/useSnippets";
 import { getLanguages } from "@/data";
 import {
@@ -59,6 +60,8 @@ export default function App() {
 
   const [result, setResult] = useState<RunResult | null>(null);
   const [previousBest, setPreviousBest] = useState<PersonalBest | null>(null);
+  const [goalRefreshKey, setGoalRefreshKey] = useState(0);
+  const playKeyboardSound = useKeyboardSound(preferences.keyboardSound);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration });
 
@@ -129,7 +132,10 @@ export default function App() {
       if (!isCustom) try {
         saveResult(r);
         updateStreak();
-        if (userIdRef.current) void uploadRun(userIdRef.current, r).catch((error) => console.error("Unable to save cloud run", error));
+        setGoalRefreshKey((key) => key + 1);
+        if (userIdRef.current) void uploadRun(userIdRef.current, r)
+          .then(() => setGoalRefreshKey((key) => key + 1))
+          .catch((error) => console.error("Unable to save cloud run", error));
       } catch {
         // localStorage may be unavailable
       }
@@ -185,12 +191,14 @@ export default function App() {
 
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
+        playKeyboardSound(e.key);
         engineHandleKey(e.key);
         return;
       }
 
       if (e.key === "Backspace") {
         e.preventDefault();
+        playKeyboardSound("Backspace");
         engineHandleKey("Backspace");
         return;
       }
@@ -208,10 +216,11 @@ export default function App() {
 
       if (e.key === "Enter") {
         e.preventDefault();
+        playKeyboardSound("Enter");
         engineHandleKey("\n");
       }
     },
-    [status, mode, engineHandleKey, handleRetry, stop],
+    [status, mode, engineHandleKey, handleRetry, stop, playKeyboardSound],
   );
 
   const charStates = useMemo(() => computeCharStates(snippet.code, input), [snippet.code, input]);
@@ -330,6 +339,8 @@ export default function App() {
               input={input}
               onClick={() => containerRef.current?.focus()}
             />
+
+            <DailyGoals refreshKey={goalRefreshKey} compact />
 
             <div className="flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span className="flex items-center gap-2">

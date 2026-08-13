@@ -10,7 +10,7 @@ import {
   signOut as appwriteSignOut,
 } from "@/lib/appwrite";
 import { syncLocalRuns } from "@/lib/cloud";
-import { ensureHistoryIds, getStreak } from "@/utils/storage";
+import { ensureHistoryIds, getSettings, getStreak, saveSettings } from "@/utils/storage";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -124,6 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const currentUser = await account.get();
       setUser(currentUser);
+      const cloudGoals = (currentUser.prefs as Record<string, unknown>).dailyGoals;
+      if (cloudGoals && typeof cloudGoals === "object") {
+        const settings = getSettings();
+        saveSettings({ ...settings, goals: { ...settings.goals, ...(cloudGoals as Partial<typeof settings.goals>) } });
+      }
       await ensureProfile(currentUser);
       setSyncStatus("syncing");
       void syncLocalRuns(currentUser.$id, ensureHistoryIds())

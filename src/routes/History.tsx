@@ -8,6 +8,7 @@ import type { RunResult, HistoryFilter, TestMode } from "@/types";
 import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
+import { DailyGoals } from "@/components/DailyGoals";
 
 function average(values: number[]): number {
   if (values.length === 0) return 0;
@@ -259,6 +260,7 @@ export default function History() {
         </div>
 
         <main className="flex flex-col gap-8 animate-fade-in-up">
+          <DailyGoals />
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {summary.map(({ label, value, icon: Icon }) => (

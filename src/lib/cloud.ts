@@ -1,6 +1,6 @@
 import { AppwriteException, Permission, Query, Role, type Models } from "appwrite";
-import type { RunResult, TestMode } from "@/types";
-import { appwriteConfig, databases } from "@/lib/appwrite";
+import type { RunResult, Settings, TestMode } from "@/types";
+import { account, appwriteConfig, databases } from "@/lib/appwrite";
 
 // Keep the pre-rename key to retain existing sync markers.
 const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v1";
@@ -132,6 +132,33 @@ export async function listUserRuns(userId: string): Promise<CloudRun[]> {
     queries: [Query.equal("userId", userId), Query.orderDesc("$createdAt"), Query.limit(500)],
   });
   return response.documents;
+}
+
+export async function getCloudDailyGoalProgress(userId: string, date: Date = new Date()) {
+  const runs = await listUserRuns(userId);
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  const today = runs.filter((run) => {
+    const idParts = run.$id.split("_");
+    const encodedTimestamp = idParts[idParts.length - 1];
+    const originalTimestamp = encodedTimestamp ? Number.parseInt(encodedTimestamp, 36) : Number.NaN;
+    const timestamp = Number.isFinite(originalTimestamp) ? originalTimestamp : new Date(run.$createdAt).getTime();
+    return timestamp >= start.getTime() && timestamp < end.getTime();
+  });
+
+  return {
+    runs: today.length,
+    minutes: today.reduce((total, run) => total + run.durationMs / 60000, 0),
+    chars: today.reduce((total, run) => total + run.keystrokes, 0),
+  };
+}
+
+export async function saveCloudGoals(goals: Settings["goals"]): Promise<void> {
+  if (!account) return;
+  const user = await account.get();
+  await account.updatePrefs({
+    prefs: { ...(user.prefs as Record<string, unknown>), dailyGoals: goals },
+  });
 }
 
 export async function listLeaderboard(filters: {

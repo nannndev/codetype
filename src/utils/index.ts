@@ -16,6 +16,8 @@ export {
   updateStreak,
   getSettings,
   saveSettings,
+  getDailyGoalProgress,
+  toLocalDateKey,
   getPersonalBests,
   getPersonalBest,
 } from './storage';

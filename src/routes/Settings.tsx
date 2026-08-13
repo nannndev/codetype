@@ -1,8 +1,12 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { usePreferences, type FontSize, type FontFamily, type CursorStyle, type EditorTheme } from "@/components/PreferencesProvider";
 import { Footer } from "@/components/Footer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { getSettings, saveSettings } from "@/utils/storage";
+import { useAuth } from "@/components/AuthProvider";
+import { saveCloudGoals } from "@/lib/cloud";
 
 const FONT_SIZE_OPTIONS: { value: FontSize; label: string }[] = [
   ...(["12", "14", "16", "18", "20", "22", "24"] as FontSize[]).map((value) => ({ value, label: `${value}px` })),
@@ -31,6 +35,16 @@ const EDITOR_THEMES: { value: EditorTheme; label: string; tone: string }[] = [
 
 export default function Settings() {
   const { preferences, setPreference } = usePreferences();
+  const { user } = useAuth();
+  const [settings, setSettings] = useState(getSettings);
+
+  const updateGoal = (key: keyof typeof settings.goals, rawValue: string) => {
+    const value = Math.max(1, Math.round(Number(rawValue) || 1));
+    const next = { ...settings, goals: { ...settings.goals, [key]: value } };
+    setSettings(next);
+    saveSettings(next);
+    if (user) void saveCloudGoals(next.goals).catch((error) => console.error("Unable to sync daily goals", error));
+  };
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
@@ -46,6 +60,33 @@ export default function Settings() {
         <h1 className="text-2xl font-bold tracking-tight mb-8">Settings</h1>
 
         <div className="space-y-8 animate-fade-in-up">
+          <div className="flex items-center justify-between gap-4 rounded-xl border bg-card p-4">
+            <div className="flex items-start gap-3">
+              {preferences.keyboardSound ? <Volume2 className="mt-0.5 size-4" /> : <VolumeX className="mt-0.5 size-4 text-muted-foreground" />}
+              <div><p className="text-sm font-semibold">Keyboard sound</p><p className="text-xs text-muted-foreground">A subtle click generated locally for each keystroke.</p></div>
+            </div>
+            <button type="button" role="switch" aria-checked={preferences.keyboardSound} onClick={() => setPreference("keyboardSound", !preferences.keyboardSound)} className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors ${preferences.keyboardSound ? "bg-foreground" : "bg-muted"}`}>
+              <span className={`absolute top-1 size-5 rounded-full bg-background shadow-sm transition-transform ${preferences.keyboardSound ? "translate-x-5" : "translate-x-1"}`} />
+              <span className="sr-only">Toggle keyboard sound</span>
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div><label className="text-xs uppercase tracking-wider text-muted-foreground">Daily goals</label><p className="mt-1 text-xs text-muted-foreground">{user ? "Synced to your Appwrite account and available across devices." : "Stored locally. Sign in with GitHub to sync across devices."}</p></div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                ["runsPerDay", "Runs", settings.goals.runsPerDay],
+                ["minutesPerDay", "Minutes", settings.goals.minutesPerDay],
+                ["charsPerDay", "Characters", settings.goals.charsPerDay],
+              ] as const).map(([key, label, value]) => (
+                <label key={key} className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">
+                  {label}
+                  <input type="number" min="1" step="1" value={value} onChange={(event) => updateGoal(key, event.target.value)} className="mt-2 h-10 w-full rounded-lg border bg-background px-3 text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-ring" />
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-3">
             <div><label className="text-xs uppercase tracking-wider text-muted-foreground">Editor Theme</label><p className="mt-1 text-xs text-muted-foreground">Independent from the app theme.</p></div>
             <div className="grid gap-3 sm:grid-cols-2">

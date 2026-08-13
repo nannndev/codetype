@@ -11,11 +11,25 @@ export interface StreakData {
   lastDate: string;
 }
 
+export interface DailyGoalProgress {
+  runs: number;
+  minutes: number;
+  chars: number;
+  goals: Settings['goals'];
+}
+
 const DEFAULT_SETTINGS: Settings = {
   version: 1,
   goals: { runsPerDay: 10, minutesPerDay: 15, charsPerDay: 2000 },
   achievements: [],
 };
+
+export function toLocalDateKey(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 // History
 
@@ -103,13 +117,32 @@ export function getSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.version === 'number') return parsed as Settings;
+    if (parsed?.version === 1) {
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        goals: { ...DEFAULT_SETTINGS.goals, ...parsed.goals },
+        achievements: Array.isArray(parsed.achievements) ? parsed.achievements : [],
+      };
+    }
   } catch {
     // fall through
   }
   const migrated = { ...DEFAULT_SETTINGS };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
   return migrated;
+}
+
+export function getDailyGoalProgress(date: Date = new Date()): DailyGoalProgress {
+  const dateKey = toLocalDateKey(date);
+  const runs = getHistory().filter((run) => toLocalDateKey(new Date(run.timestamp)) === dateKey);
+
+  return {
+    runs: runs.length,
+    minutes: runs.reduce((total, run) => total + Math.max(0, run.duration) / 60000, 0),
+    chars: runs.reduce((total, run) => total + Math.max(0, run.charsTyped), 0),
+    goals: getSettings().goals,
+  };
 }
 
 export function saveSettings(settings: Settings): void {

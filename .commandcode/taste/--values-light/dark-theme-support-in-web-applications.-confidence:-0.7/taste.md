@@ -14,3 +14,13 @@
 - Prefers dedicated routes/pages for settings or feature-heavy screens over side panels, modals, or slide-in sheets — explicitly chooses URL-routable full pages when a surface is expected to grow in complexity. Confidence: 0.7
 - Cares deeply about cursor/input visibility; finds blinking or low-contrast cursors frustrating and wants interactive elements always clearly visible regardless of theme. Confidence: 0.7
 - Uses structured feature-specification documents (`.commandcode/handoff-*.md` files) as the primary mechanism to communicate and persist detailed feature requirements across sessions. Confidence: 0.7
+- Cares deeply about statistical accuracy/precision — repeatedly flags inaccurate WPM, accuracy, and stat calculations and expects metrics to be measurably correct, not approximate. Confidence: 0.7
+- Prefers real, multi-color syntax highlighting like established editors, not flat single-color code (e.g., plain green) — wants code to look "persis" (identical) to other editors. Confidence: 0.7
+- Dislikes generic "AI-looking" grid backgrounds; prefers monochrome color schemes with subtle gradients over flat or overly generated backdrops. Confidence: 0.6
+- Wants brand/language icons that authentically match their real-world logos rather than generic or mismatched placeholders. Confidence: 0.6
+- Values typing-flow ergonomics — wants auto-scroll so users never manually scroll mid-typing on long lines, plus a quick reset shortcut/button. Confidence: 0.6
+- Prefers persisting user history, streaks, and stat graphs locally (e.g., localStorage) so progress survives sessions. Confidence: 0.6
+- Wants gamification/social features — leaderboards with ranking accents (e.g., crowns), clean category separation (not filter-style dropdowns), and shareable stat images with preview and download. Confidence: 0.6
+- Wants broad programming-language coverage (e.g., PHP, Dart, Flutter) beyond just common languages. Confidence: 0.5
+- Prefers a meaningful logo monogram (letters forming a recognizable shape) over plain text letters, and cares about brand uniqueness when naming a product. Confidence: 0.5
+- Uses Vercel (deploy + analytics) and Appwrite (backend/DB/auth) as preferred tooling. Confidence: 0.5

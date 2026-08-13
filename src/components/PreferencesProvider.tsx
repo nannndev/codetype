@@ -12,6 +12,7 @@ export interface Preferences {
   cursorStyle: CursorStyle;
   snippetLength: SnippetLength;
   editorTheme: EditorTheme;
+  keyboardSound: boolean;
 }
 
 interface PreferencesContextValue {
@@ -30,6 +31,7 @@ const DEFAULTS: Preferences = {
   cursorStyle: "block",
   snippetLength: "medium",
   editorTheme: "codey",
+  keyboardSound: false,
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
