@@ -1,5 +1,6 @@
 import type { RunResult, TestMode, PersonalBest, Settings } from '../types';
 
+// Legacy keys are preserved so the Codey rename does not erase user data.
 const HISTORY_KEY = 'codetype_history';
 const STREAK_KEY = 'codetype_streak';
 const SETTINGS_KEY = 'codetype_settings';

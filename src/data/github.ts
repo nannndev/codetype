@@ -108,7 +108,7 @@ export async function fetchSnippetsForLanguage(lang: string): Promise<Snippet[]>
   const cacheKey = lang.toLowerCase();
   if (fileCache.has(cacheKey)) return fileCache.get(cacheKey)!;
 
-  const storageKey = `codetype_snippets_v2_${cacheKey}`;
+  const storageKey = `codey_snippets_v3_${cacheKey}`;
   try {
     const cached = localStorage.getItem(storageKey);
     if (cached) {
@@ -124,7 +124,7 @@ export async function fetchSnippetsForLanguage(lang: string): Promise<Snippet[]>
 
   try {
     const response = await fetch(`/api/snippets?language=${encodeURIComponent(lang)}`);
-    if (response.ok) {
+    if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
       const payload = await response.json() as { snippets?: Snippet[] };
       if (payload.snippets?.length) {
         fileCache.set(cacheKey, payload.snippets);
@@ -167,7 +167,8 @@ export async function fetchSnippetsForLanguage(lang: string): Promise<Snippet[]>
           && (!allowedExtensions || allowedExtensions.includes(extension));
       });
 
-      const candidates = files.slice(0, 5);
+      const shuffledFiles = [...files].sort(() => Math.random() - 0.5);
+      const candidates = shuffledFiles.slice(0, 8);
       for (const file of candidates) {
         try {
           const fileData: GitHubFile = await fetchJSON(file.path ? `${GITHUB_API}/repos/${source.owner}/${source.repo}/contents/${file.path}` : `${GITHUB_API}/repos/${source.owner}/${source.repo}/contents/${file.name}`);

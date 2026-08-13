@@ -37,9 +37,9 @@ export default function Donate() {
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
             <Heart className="size-3.5 fill-current" /> Support Open Source
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Support CodeType</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Support Codey</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            CodeType is 100% free and open-source. If this app helps you improve your typing speed or developer workflow, consider supporting the developer to keep hosting & cloud features alive!
+            Codey is 100% free and open-source. If this app helps you improve your typing speed or developer workflow, consider supporting the developer to keep hosting & cloud features alive!
           </p>
         </header>
 
@@ -183,7 +183,7 @@ export default function Donate() {
               <span>Other Ways to Support</span>
             </h3>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              Don't have funds? No problem! You can support CodeType in many impactful ways:
+              Don't have funds? No problem! You can support Codey in many impactful ways:
             </p>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -204,7 +204,7 @@ export default function Donate() {
               <div className="rounded-xl border bg-muted/30 p-4">
                 <Zap className="mb-2 size-5 text-blue-400" />
                 <h4 className="text-sm font-bold">Share with Developers</h4>
-                <p className="mt-1 text-xs text-muted-foreground">Tell your tech friends, dev communities, or colleagues about CodeType.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Tell your tech friends, dev communities, or colleagues about Codey.</p>
                 <button
                   type="button"
                   onClick={() => copyToClipboard(window.location.origin, "share")}

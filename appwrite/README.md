@@ -1,6 +1,6 @@
 # Appwrite Setup
 
-CodeType remains fully usable without Appwrite. Configure Appwrite only when public accounts, cloud history, and leaderboards are ready to be enabled.
+Codey remains fully usable without Appwrite. Configure Appwrite only when public accounts, cloud history, and leaderboards are ready to be enabled.
 
 ## Project
 
@@ -22,7 +22,7 @@ The frontend helper `signInWithGitHub()` is available in `src/lib/appwrite.ts`.
 
 ## Database
 
-Create a database with ID `codetype`, then create the collections described in `schema.md`. Collection IDs can be changed through the Vite environment variables in `.env.example`.
+Create a database using the existing legacy ID `codetype`, then create the collections described in `schema.md`. The legacy ID is intentionally preserved after the Codey rename so current cloud data remains connected. Collection IDs can be changed through the Vite environment variables in `.env.example`.
 
 ## Server API key
 

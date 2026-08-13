@@ -10,6 +10,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+// Keep the pre-rename key so the saved Codey theme survives the rename.
 const STORAGE_KEY = "codetype-theme";
 
 function getSystemTheme(): "light" | "dark" {

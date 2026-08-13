@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { usePreferences, type FontSize, type FontFamily, type CursorStyle } from "@/components/PreferencesProvider";
+import { usePreferences, type FontSize, type FontFamily, type CursorStyle, type EditorTheme } from "@/components/PreferencesProvider";
 import { Footer } from "@/components/Footer";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -21,6 +21,14 @@ const CURSOR_OPTIONS: { value: CursorStyle; label: string }[] = [
   { value: "line", label: "Line" },
 ];
 
+const EDITOR_THEMES: { value: EditorTheme; label: string; tone: string }[] = [
+  { value: "codey", label: "Codey Mono", tone: "Balanced monochrome" },
+  { value: "tokyo", label: "Tokyo Night", tone: "Deep navy · electric blue" },
+  { value: "catppuccin", label: "Catppuccin", tone: "Soft mocha · lavender" },
+  { value: "github", label: "GitHub Light", tone: "Bright · high clarity" },
+  { value: "dracula", label: "Dracula", tone: "Dark violet · vivid tokens" },
+];
+
 export default function Settings() {
   const { preferences, setPreference } = usePreferences();
 
@@ -38,6 +46,21 @@ export default function Settings() {
         <h1 className="text-2xl font-bold tracking-tight mb-8">Settings</h1>
 
         <div className="space-y-8 animate-fade-in-up">
+          <div className="space-y-3">
+            <div><label className="text-xs uppercase tracking-wider text-muted-foreground">Editor Theme</label><p className="mt-1 text-xs text-muted-foreground">Independent from the app theme.</p></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {EDITOR_THEMES.map((theme) => (
+                <button key={theme.value} type="button" onClick={() => setPreference("editorTheme", theme.value)} className={`overflow-hidden rounded-xl border text-left transition-all ${preferences.editorTheme === theme.value ? "border-foreground ring-1 ring-foreground" : "hover:border-foreground/35"}`}>
+                  <div className="editor-theme-preview p-4" data-preview-theme={theme.value}>
+                    <div className="mb-3 flex gap-1.5"><span className="size-2 rounded-full bg-current opacity-25" /><span className="size-2 rounded-full bg-current opacity-15" /></div>
+                    <code className="block text-[11px] leading-5"><span className="preview-keyword">const</span> <span className="preview-function">greet</span> <span className="preview-operator">=</span> <span className="preview-keyword">async</span> (<span className="preview-property">name</span>) <span className="preview-operator">=&gt;</span> {'{'}<br />&nbsp;&nbsp;<span className="preview-comment">// hello, developer</span><br />&nbsp;&nbsp;<span className="preview-keyword">return</span> <span className="preview-string">`Hi ${'{'}name{'}'}`</span><br />{'}'}</code>
+                  </div>
+                  <div className="bg-card px-4 py-3"><p className="text-sm font-bold">{theme.label}</p><p className="text-[10px] text-muted-foreground">{theme.tone}</p></div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Font Size */}
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Font Size</label>

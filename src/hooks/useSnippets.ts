@@ -30,17 +30,24 @@ export function useSnippets(language?: string, length: SnippetLength = 'medium')
   const [dynamicSnippets, setDynamicSnippets] = useState<Record<string, Snippet[]>>({});
   const [loading, setLoading] = useState(false);
   const fetchedLangs = useRef(new Set<string>());
+  const lastSnippetId = useRef<string | null>(null);
 
   useEffect(() => {
-    const lang = language === 'All' ? undefined : language;
-    if (!lang) return;
-    if (fetchedLangs.current.has(lang)) return;
-    fetchedLangs.current.add(lang);
+    const languages = language === 'All'
+      ? ['JavaScript', 'TypeScript', 'React', 'Python', 'Go']
+      : language ? [language] : [];
+    const pending = languages.filter((lang) => !fetchedLangs.current.has(lang));
+    if (pending.length === 0) return;
+    pending.forEach((lang) => fetchedLangs.current.add(lang));
 
     setLoading(true);
-    fetchSnippetsForLanguage(lang)
-      .then((snippets) => {
-        setDynamicSnippets((prev) => ({ ...prev, [lang]: snippets }));
+    Promise.all(pending.map(async (lang) => ({ lang, snippets: await fetchSnippetsForLanguage(lang) })))
+      .then((results) => {
+        setDynamicSnippets((prev) => {
+          const next = { ...prev };
+          results.forEach(({ lang, snippets }) => { next[lang] = snippets; });
+          return next;
+        });
       })
       .catch(() => {
         // silent fallback
@@ -50,18 +57,27 @@ export function useSnippets(language?: string, length: SnippetLength = 'medium')
 
   const getRandomSnippet = useCallback((): Snippet => {
     const selectedLanguage = language === 'All' ? undefined : language;
-    const staticSnippet = getStaticSnippet(selectedLanguage);
     const matchingDynamicSnippets = selectedLanguage
       ? (dynamicSnippets[selectedLanguage] ?? [])
       : Object.values(dynamicSnippets).flat();
 
-    if (matchingDynamicSnippets.length > 0 && Math.random() > 0.3) {
-      const idx = Math.floor(Math.random() * matchingDynamicSnippets.length);
-      const rotated = [...matchingDynamicSnippets.slice(idx), ...matchingDynamicSnippets.slice(0, idx)];
-      return combineSnippets(rotated, length);
+    if (matchingDynamicSnippets.length > 0) {
+      const alternatives = matchingDynamicSnippets.filter((snippet) => snippet.id !== lastSnippetId.current);
+      const pool = alternatives.length > 0 ? alternatives : matchingDynamicSnippets;
+      const idx = Math.floor(Math.random() * pool.length);
+      const rotated = [...pool.slice(idx), ...pool.slice(0, idx)];
+      const snippet = combineSnippets(rotated, length);
+      lastSnippetId.current = snippet.id;
+      return snippet;
     }
 
-    return fitSnippet(staticSnippet, length);
+    let staticSnippet = getStaticSnippet(selectedLanguage);
+    for (let attempt = 0; attempt < 5 && staticSnippet.id === lastSnippetId.current; attempt += 1) {
+      staticSnippet = getStaticSnippet(selectedLanguage);
+    }
+    const snippet = fitSnippet(staticSnippet, length);
+    lastSnippetId.current = snippet.id;
+    return snippet;
   }, [language, dynamicSnippets, length]);
 
   return { loading, getRandomSnippet };

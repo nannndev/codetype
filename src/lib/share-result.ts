@@ -40,7 +40,7 @@ function drawLogo(context: CanvasRenderingContext2D) {
   context.stroke();
   context.fillStyle = "#111111";
   context.font = "800 20px monospace";
-  context.fillText("CT", x + 19, y + 48);
+  context.fillText("CY", x + 19, y + 48);
 }
 
 function drawTrend(context: CanvasRenderingContext2D, values: number[], x: number, y: number, width: number, height: number) {
@@ -96,7 +96,7 @@ export async function createResultCard({ result, username, heading, rank }: Shar
   drawLogo(context);
   context.fillStyle = "#f4f4f4";
   context.font = "800 32px monospace";
-  context.fillText("CodeType_", 158, 98);
+  context.fillText("Codey_", 158, 98);
   context.fillStyle = "#777777";
   context.font = "500 18px monospace";
   context.textAlign = "right";
@@ -145,7 +145,7 @@ export async function createResultCard({ result, username, heading, rank }: Shar
   const footer = result.sourceType === "custom" ? "LOCAL PRACTICE · NOT RANKED" : rank ? `GLOBAL COMMUNITY RANK #${rank}` : `${result.totalErrors} ERRORS · ${result.charsTyped} KEYSTROKES · COMMUNITY RUN`;
   context.fillText(footer, 72, 590);
   context.textAlign = "right";
-  context.fillText("codetype-opal.vercel.app", 1128, 590);
+  context.fillText(window.location.host, 1128, 590);
 
   return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Unable to generate image")), "image/png", 1));
 }

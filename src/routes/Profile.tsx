@@ -86,7 +86,7 @@ export default function Profile() {
         {!viewedUserId ? (
           <main className="mx-auto grid max-w-lg place-items-center rounded-2xl border bg-card/80 p-10 text-center backdrop-blur-sm">
             <div className="mb-5 grid size-16 place-items-center rounded-2xl border bg-muted/60"><UserRound className="size-7" /></div>
-            <h1 className="text-2xl font-bold">Your CodeType profile</h1>
+            <h1 className="text-2xl font-bold">Your Codey profile</h1>
             <p className="mt-2 text-sm text-muted-foreground">Sign in with GitHub to sync this browser's history and enter the community leaderboard.</p>
             {configured && <Button className="mt-6" onClick={login} disabled={loading}><GitBranch data-icon="inline-start" /> Continue with GitHub</Button>}
           </main>
@@ -134,7 +134,7 @@ export default function Profile() {
                       <ExternalLink className="size-3" />
                     </a>
                   )}
-                  {bestRun && <button type="button" onClick={() => setShareOptions({ result: cloudRunAsResult(bestRun), username: resolvedGithubUsername || profile?.displayName || undefined, heading: "CodeType profile highlight" })} className="flex items-center gap-2 rounded-full border bg-foreground px-3.5 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"><Share2 className="size-3.5" /> Share profile stats</button>}
+                  {bestRun && <button type="button" onClick={() => setShareOptions({ result: cloudRunAsResult(bestRun), username: resolvedGithubUsername || profile?.displayName || undefined, heading: "Codey profile highlight" })} className="flex items-center gap-2 rounded-full border bg-foreground px-3.5 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"><Share2 className="size-3.5" /> Share profile stats</button>}
                 </div>
               </div>
             </section>

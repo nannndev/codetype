@@ -1,8 +1,8 @@
-# CodeType Local Feature Handoff
+# Codey Local Feature Handoff
 
 ## Objective
 
-Continue developing CodeType as a polished local-first code typing application. Supabase/public accounts/leaderboards are explicitly paused. Do not require a backend for the work in this handoff.
+Continue developing Codey as a polished local-first code typing application. Supabase/public accounts/leaderboards are explicitly paused. Do not require a backend for the work in this handoff.
 
 ## Current Product State
 
@@ -108,7 +108,7 @@ Implement one mode at a time. Do not destabilize existing Snippet, Timed, or Zen
 
 ## Storage Requirements
 
-- Preserve existing keys and data where practical:
+- Preserve the legacy pre-rename keys and data where practical:
   - `codetype_history`
   - `codetype_streak`
 - Introduce a versioned storage schema for new settings.

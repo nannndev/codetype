@@ -171,8 +171,61 @@ html {
 }
 
 .code-window {
+  --editor-bg: hsl(0 0% 8%);
+  --editor-chrome: hsl(0 0% 11%);
+  --editor-border: hsl(0 0% 22%);
+  --syntax-plain: hsl(220 14% 72%);
+  --syntax-keyword: hsl(207 82% 68%);
+  --syntax-string: hsl(39 72% 68%);
+  --syntax-comment: hsl(145 20% 53%);
+  --syntax-number: hsl(28 82% 68%);
+  --syntax-function: hsl(48 83% 69%);
+  --syntax-type: hsl(178 50% 62%);
+  --syntax-operator: hsl(326 55% 72%);
+  --syntax-property: hsl(199 48% 70%);
+  color: var(--syntax-plain);
+  background: var(--editor-bg);
+  border-color: var(--editor-border);
   backdrop-filter: blur(18px);
   box-shadow: 0 24px 70px hsl(0 0% 10% / 0.16), 0 1px 0 hsl(0 0% 100% / 0.7) inset;
+}
+
+.code-chrome { background: var(--editor-chrome); border-color: var(--editor-border); }
+
+[data-editor-theme="tokyo"] .code-window {
+  --editor-bg: #1a1b26; --editor-chrome: #16161e; --editor-border: #343b58;
+  --syntax-plain: #a9b1d6; --syntax-keyword: #bb9af7; --syntax-string: #9ece6a; --syntax-comment: #565f89;
+  --syntax-number: #ff9e64; --syntax-function: #7aa2f7; --syntax-type: #2ac3de; --syntax-operator: #89ddff; --syntax-property: #73daca;
+}
+[data-editor-theme="catppuccin"] .code-window {
+  --editor-bg: #1e1e2e; --editor-chrome: #181825; --editor-border: #45475a;
+  --syntax-plain: #cdd6f4; --syntax-keyword: #cba6f7; --syntax-string: #a6e3a1; --syntax-comment: #6c7086;
+  --syntax-number: #fab387; --syntax-function: #89b4fa; --syntax-type: #94e2d5; --syntax-operator: #f5c2e7; --syntax-property: #74c7ec;
+}
+[data-editor-theme="github"] .code-window {
+  --editor-bg: #ffffff; --editor-chrome: #f6f8fa; --editor-border: #d0d7de;
+  --syntax-plain: #24292f; --syntax-keyword: #cf222e; --syntax-string: #0a3069; --syntax-comment: #6e7781;
+  --syntax-number: #0550ae; --syntax-function: #8250df; --syntax-type: #953800; --syntax-operator: #cf222e; --syntax-property: #116329;
+}
+[data-editor-theme="dracula"] .code-window {
+  --editor-bg: #282a36; --editor-chrome: #21222c; --editor-border: #44475a;
+  --syntax-plain: #f8f8f2; --syntax-keyword: #ff79c6; --syntax-string: #f1fa8c; --syntax-comment: #6272a4;
+  --syntax-number: #bd93f9; --syntax-function: #50fa7b; --syntax-type: #8be9fd; --syntax-operator: #ff79c6; --syntax-property: #8be9fd;
+}
+
+.code-viewport {
+  height: clamp(20rem, 48vh, 32rem);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.code-viewport::-webkit-scrollbar { width: 10px; height: 10px; }
+.code-viewport::-webkit-scrollbar-track { background: transparent; }
+.code-viewport::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: hsl(0 0% 50% / 0.3);
+  background-clip: padding-box;
 }
 
 .code-row {
@@ -204,6 +257,42 @@ html {
   color: var(--color-primary);
   font-weight: 700;
 }
+
+.syntax-char.is-pending { opacity: 0.5; }
+.syntax-char.is-typed { opacity: 1; }
+.syntax-char.is-error {
+  color: hsl(0 78% 62%) !important;
+  background: hsl(0 78% 52% / 0.14);
+  text-decoration: underline wavy hsl(0 78% 58%);
+  text-underline-offset: 0.18em;
+}
+
+.syntax-plain { color: var(--syntax-plain); }
+.syntax-keyword { color: var(--syntax-keyword); }
+.syntax-string { color: var(--syntax-string); }
+.syntax-comment { color: var(--syntax-comment); font-style: italic; }
+.syntax-number { color: var(--syntax-number); }
+.syntax-function { color: var(--syntax-function); }
+.syntax-type { color: var(--syntax-type); }
+.syntax-operator { color: var(--syntax-operator); }
+.syntax-property { color: var(--syntax-property); }
+
+.editor-theme-preview { background: #111; color: #bbb; }
+.editor-theme-preview[data-preview-theme="tokyo"] { background: #1a1b26; color: #a9b1d6; }
+.editor-theme-preview[data-preview-theme="catppuccin"] { background: #1e1e2e; color: #cdd6f4; }
+.editor-theme-preview[data-preview-theme="github"] { background: #fff; color: #24292f; }
+.editor-theme-preview[data-preview-theme="dracula"] { background: #282a36; color: #f8f8f2; }
+.editor-theme-preview[data-preview-theme="codey"] .preview-keyword { color: hsl(207 82% 68%); }
+.editor-theme-preview[data-preview-theme="codey"] .preview-function { color: hsl(48 83% 69%); }
+.editor-theme-preview[data-preview-theme="codey"] .preview-operator { color: hsl(326 55% 72%); }
+.editor-theme-preview[data-preview-theme="codey"] .preview-property { color: hsl(199 48% 70%); }
+.editor-theme-preview[data-preview-theme="codey"] .preview-comment { color: hsl(145 20% 53%); }
+.editor-theme-preview[data-preview-theme="codey"] .preview-string { color: hsl(39 72% 68%); }
+.editor-theme-preview[data-preview-theme="tokyo"] .preview-keyword, .editor-theme-preview[data-preview-theme="tokyo"] .preview-operator { color: #bb9af7; }
+.editor-theme-preview[data-preview-theme="tokyo"] .preview-function { color: #7aa2f7; } .editor-theme-preview[data-preview-theme="tokyo"] .preview-property { color: #73daca; } .editor-theme-preview[data-preview-theme="tokyo"] .preview-comment { color: #565f89; } .editor-theme-preview[data-preview-theme="tokyo"] .preview-string { color: #9ece6a; }
+.editor-theme-preview[data-preview-theme="catppuccin"] .preview-keyword, .editor-theme-preview[data-preview-theme="catppuccin"] .preview-operator { color: #cba6f7; } .editor-theme-preview[data-preview-theme="catppuccin"] .preview-function { color: #89b4fa; } .editor-theme-preview[data-preview-theme="catppuccin"] .preview-property { color: #74c7ec; } .editor-theme-preview[data-preview-theme="catppuccin"] .preview-comment { color: #6c7086; } .editor-theme-preview[data-preview-theme="catppuccin"] .preview-string { color: #a6e3a1; }
+.editor-theme-preview[data-preview-theme="github"] .preview-keyword, .editor-theme-preview[data-preview-theme="github"] .preview-operator { color: #cf222e; } .editor-theme-preview[data-preview-theme="github"] .preview-function { color: #8250df; } .editor-theme-preview[data-preview-theme="github"] .preview-property { color: #116329; } .editor-theme-preview[data-preview-theme="github"] .preview-comment { color: #6e7781; } .editor-theme-preview[data-preview-theme="github"] .preview-string { color: #0a3069; }
+.editor-theme-preview[data-preview-theme="dracula"] .preview-keyword, .editor-theme-preview[data-preview-theme="dracula"] .preview-operator { color: #ff79c6; } .editor-theme-preview[data-preview-theme="dracula"] .preview-function { color: #50fa7b; } .editor-theme-preview[data-preview-theme="dracula"] .preview-property { color: #8be9fd; } .editor-theme-preview[data-preview-theme="dracula"] .preview-comment { color: #6272a4; } .editor-theme-preview[data-preview-theme="dracula"] .preview-string { color: #f1fa8c; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

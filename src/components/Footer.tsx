@@ -21,7 +21,7 @@ export function Footer() {
             className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <GithubIcon className="size-4" />
-            <span>nannndev/codetype</span>
+            <span>Codey on GitHub</span>
           </a>
           <span className="text-border hidden sm:inline">&bull;</span>
           <Link

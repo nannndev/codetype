@@ -1,4 +1,4 @@
-# CodeType Appwrite Schema
+# Codey Appwrite Schema
 
 Use these exact IDs by default.
 

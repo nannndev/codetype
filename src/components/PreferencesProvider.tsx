@@ -4,12 +4,14 @@ export type FontSize = "12" | "14" | "16" | "18" | "20" | "22" | "24";
 export type FontFamily = "jetbrains" | "fira" | "cascadia" | "source";
 export type CursorStyle = "block" | "underline" | "line";
 export type SnippetLength = "short" | "medium" | "long";
+export type EditorTheme = "codey" | "tokyo" | "catppuccin" | "github" | "dracula";
 
 export interface Preferences {
   fontSize: FontSize;
   fontFamily: FontFamily;
   cursorStyle: CursorStyle;
   snippetLength: SnippetLength;
+  editorTheme: EditorTheme;
 }
 
 interface PreferencesContextValue {
@@ -19,6 +21,7 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
+// Keep the pre-rename key so existing Codey preferences survive the rename.
 const STORAGE_KEY = "codetype-preferences";
 
 const DEFAULTS: Preferences = {
@@ -26,6 +29,7 @@ const DEFAULTS: Preferences = {
   fontFamily: "jetbrains",
   cursorStyle: "block",
   snippetLength: "medium",
+  editorTheme: "codey",
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
@@ -49,6 +53,7 @@ function applyPreferences(prefs: Preferences) {
   document.documentElement.style.setProperty("--code-font-size", FONT_SIZE_MAP[prefs.fontSize]);
   document.documentElement.style.setProperty("--code-font-family", FONT_FAMILY_MAP[prefs.fontFamily]);
   document.documentElement.style.setProperty("--code-cursor-style", prefs.cursorStyle);
+  document.documentElement.dataset.editorTheme = prefs.editorTheme;
 }
 
 function loadPreferences(): Preferences {

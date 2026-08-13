@@ -1,4 +1,4 @@
-# CodeType
+# Codey
 
 ## Dynamic GitHub snippets
 

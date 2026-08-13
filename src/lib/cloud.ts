@@ -2,6 +2,7 @@ import { AppwriteException, Permission, Query, Role, type Models } from "appwrit
 import type { RunResult, TestMode } from "@/types";
 import { appwriteConfig, databases } from "@/lib/appwrite";
 
+// Keep the pre-rename key to retain existing sync markers.
 const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v1";
 
 export interface CloudProfile extends Models.Document {

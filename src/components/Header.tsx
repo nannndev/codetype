@@ -13,7 +13,7 @@ export function Header() {
         <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <div className="logo-mark" aria-hidden="true"><img src="/favicon.svg" alt="" /></div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">CodeType<span className="text-primary">_</span></h1>
+            <h1 className="text-2xl font-bold tracking-tight">Codey<span className="text-primary">_</span></h1>
             <p className="text-sm text-muted-foreground mt-0.5">type real code, get faster</p>
           </div>
         </Link>

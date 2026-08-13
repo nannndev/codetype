@@ -76,9 +76,9 @@ export default function Contributors() {
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-600 dark:text-sky-400">
               <Users className="size-3.5" /> Open Source Heroes
             </div>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">CodeType Contributors</h1>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Codey Contributors</h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              CodeType is made possible by amazing open-source contributors. Thank you to everyone who contributed code, bug reports, and features!
+              Codey is made possible by amazing open-source contributors. Thank you to everyone who contributed code, bug reports, and features!
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export default function Contributors() {
                     </span>
                   )}
                 </h2>
-                <p className="text-xs text-muted-foreground">Ranked by contributions to nannndev/codetype</p>
+                <p className="text-xs text-muted-foreground">Ranked by contributions to the Codey repository</p>
               </div>
               <a
                 href="https://github.com/nannndev/codetype/graphs/contributors"
@@ -197,7 +197,7 @@ export default function Contributors() {
           <section className="rounded-2xl border bg-card/80 p-6 backdrop-blur-sm">
             <h3 className="flex items-center gap-2 text-lg font-bold">
               <GitPullRequest className="size-5 text-sky-500" />
-              <span>Want to Contribute to CodeType?</span>
+              <span>Want to Contribute to Codey?</span>
             </h3>
             <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
               We welcome code snippets for new programming languages, bug fixes, UI improvements, and feature suggestions!

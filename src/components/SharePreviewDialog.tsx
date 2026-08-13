@@ -41,7 +41,7 @@ export function SharePreviewDialog({ options, onClose }: SharePreviewDialogProps
   }, [options, onClose]);
 
   if (!options) return null;
-  const filename = `codetype-${Math.round(options.result.wpm)}wpm.png`;
+  const filename = `codey-${Math.round(options.result.wpm)}wpm.png`;
   const canNativeShare = typeof navigator.share === "function";
 
   const download = () => {
@@ -62,7 +62,7 @@ export function SharePreviewDialog({ options, onClose }: SharePreviewDialogProps
       return;
     }
     try {
-      await navigator.share({ files: [file], title: "CodeType stats", text: `${options.result.wpm.toFixed(1)} WPM on ${options.result.language}` });
+      await navigator.share({ files: [file], title: "Codey stats", text: `${options.result.wpm.toFixed(1)} WPM on ${options.result.language}` });
       setStatus("shared");
     } catch (error) {
       if (!(error instanceof DOMException) || error.name !== "AbortError") setStatus("error");
@@ -74,7 +74,7 @@ export function SharePreviewDialog({ options, onClose }: SharePreviewDialogProps
       <div className="w-full max-w-4xl overflow-hidden rounded-2xl border bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b px-4 py-3 sm:px-5"><div><h2 className="text-sm font-bold">Share preview</h2><p className="text-[11px] text-muted-foreground">Preview the exact PNG before sharing.</p></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close preview"><X className="size-4" /></button></div>
         <div className="grid min-h-64 place-items-center bg-muted/35 p-3 sm:p-6">
-          {status === "loading" ? <LoaderCircle className="size-7 animate-spin text-muted-foreground" /> : previewUrl ? <img src={previewUrl} alt="Generated CodeType statistics card" className="max-h-[65vh] w-full rounded-xl border object-contain shadow-xl" /> : <p className="text-sm text-muted-foreground">Unable to generate preview.</p>}
+          {status === "loading" ? <LoaderCircle className="size-7 animate-spin text-muted-foreground" /> : previewUrl ? <img src={previewUrl} alt="Generated Codey statistics card" className="max-h-[65vh] w-full rounded-xl border object-contain shadow-xl" /> : <p className="text-sm text-muted-foreground">Unable to generate preview.</p>}
         </div>
         <div className="flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={download} disabled={!blob}><Download data-icon="inline-start" /> Download PNG</Button>
