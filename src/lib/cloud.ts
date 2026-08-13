@@ -146,17 +146,37 @@ export async function listLeaderboard(filters: {
   if (filters.mode === "timed" && filters.durationSeconds) {
     queries.unshift(Query.equal("durationSeconds", filters.durationSeconds));
   }
-  const response = await databases.listDocuments<CloudRun>({
-    databaseId: appwriteConfig.databaseId,
-    collectionId: appwriteConfig.runsCollectionId,
-    queries,
-  });
-  return response.documents;
+  try {
+    const response = await databases.listDocuments<CloudRun>({
+      databaseId: appwriteConfig.databaseId,
+      collectionId: appwriteConfig.runsCollectionId,
+      queries,
+    });
+    return response.documents;
+  } catch (error) {
+    // Some Appwrite projects may not have every composite leaderboard index yet.
+    if (!(error instanceof AppwriteException) || error.code !== 400) throw error;
+    const response = await databases.listDocuments<CloudRun>({
+      databaseId: appwriteConfig.databaseId,
+      collectionId: appwriteConfig.runsCollectionId,
+      queries: [Query.orderDesc("wpm"), Query.limit(500)],
+    });
+    return response.documents.filter((run) => {
+      if (filters.language && run.language !== filters.language) return false;
+      if (filters.mode && run.mode !== filters.mode) return false;
+      if (filters.mode === "timed" && filters.durationSeconds && run.durationSeconds !== filters.durationSeconds) return false;
+      return true;
+    }).slice(0, 100);
+  }
 }
 
 export async function listProfiles(userIds: string[]): Promise<Map<string, CloudProfile>> {
   if (!databases || userIds.length === 0) return new Map();
   const uniqueIds = Array.from(new Set(userIds));
-  const profiles = await Promise.all(uniqueIds.map((id) => getProfile(id)));
-  return new Map(profiles.filter((profile): profile is CloudProfile => Boolean(profile)).map((profile) => [profile.$id, profile]));
+  const profiles = await Promise.allSettled(uniqueIds.map((id) => getProfile(id)));
+  return new Map(profiles
+    .filter((result): result is PromiseFulfilledResult<CloudProfile | null> => result.status === "fulfilled")
+    .map((result) => result.value)
+    .filter((profile): profile is CloudProfile => Boolean(profile))
+    .map((profile) => [profile.$id, profile]));
 }

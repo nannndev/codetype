@@ -58,7 +58,8 @@ export default function Leaderboard() {
     }).then(async (nextRuns) => {
       const rankedRuns = bestRunPerUser(nextRuns);
       setRuns(rankedRuns);
-      setProfiles(await listProfiles(rankedRuns.map((run) => run.userId)));
+      const nextProfiles = await listProfiles(rankedRuns.map((run) => run.userId));
+      setProfiles(nextProfiles);
     }).catch((loadError) => {
       console.error("Unable to load leaderboard", loadError);
       setError(true);
