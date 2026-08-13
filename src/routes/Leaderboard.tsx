@@ -45,12 +45,14 @@ export default function Leaderboard() {
   const [profiles, setProfiles] = useState<Map<string, CloudProfile>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const languages = useMemo(() => getLanguages().filter((item) => item !== "All"), []);
 
   useEffect(() => {
     setLoading(true);
     setError(false);
+    setErrorMessage("");
     void listLeaderboard({
       language: board === "language" ? language : undefined,
       mode: board === "mode" ? mode : undefined,
@@ -63,6 +65,10 @@ export default function Leaderboard() {
     }).catch((loadError) => {
       console.error("Unable to load leaderboard", loadError);
       setError(true);
+      const message = loadError instanceof Error ? loadError.message : "";
+      setErrorMessage(message.toLowerCase().includes("forbidden")
+        ? `Appwrite has not allowed ${window.location.hostname} yet. Add this hostname as an Appwrite Web Platform.`
+        : "Unable to load this leaderboard category. Try refreshing in a moment.");
     }).finally(() => setLoading(false));
   }, [board, language, mode, duration]);
 
@@ -128,7 +134,7 @@ export default function Leaderboard() {
         {loading ? (
           <div className="grid h-80 place-items-center rounded-2xl border bg-card/70"><LoaderCircle className="size-6 animate-spin text-muted-foreground" /></div>
         ) : error ? (
-          <div className="grid h-80 place-items-center rounded-2xl border bg-card/70 px-5 text-center text-sm text-muted-foreground">Leaderboard query failed. Check the Appwrite index for this category.</div>
+          <div className="grid h-80 place-items-center rounded-2xl border bg-card/70 px-5 text-center text-sm text-muted-foreground">{errorMessage}</div>
         ) : runs.length === 0 ? (
           <div className="grid h-80 place-items-center rounded-2xl border bg-card/70 px-5 text-center text-sm text-muted-foreground">No scores on this board yet. Claim the first rank.</div>
         ) : (
