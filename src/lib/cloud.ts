@@ -3,7 +3,7 @@ import type { RunResult, Settings, SnippetLength, TestMode } from "@/types";
 import { account, appwriteConfig, databases } from "@/lib/appwrite";
 
 // Keep the pre-rename key to retain existing sync markers.
-const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v1";
+const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v2";
 
 export interface CloudProfile extends Models.Document {
   githubUsername?: string;
@@ -93,27 +93,44 @@ export async function uploadRun(userId: string, run: RunResult): Promise<void> {
   const key = `${userId}:${runKey(run)}`;
   if (getSyncedKeys().has(key)) return;
 
+  const owner = Role.user(userId);
+  const id = documentId(userId, run);
+  const request = {
+    databaseId: appwriteConfig.databaseId,
+    collectionId: appwriteConfig.runsCollectionId,
+    documentId: id,
+    permissions: [Permission.read(Role.any()), Permission.update(owner), Permission.delete(owner)],
+  };
+  let fullySynced = true;
   try {
-    const owner = Role.user(userId);
-    const request = {
-      databaseId: appwriteConfig.databaseId,
-      collectionId: appwriteConfig.runsCollectionId,
-      documentId: documentId(userId, run),
-      permissions: [Permission.read(Role.any()), Permission.update(owner), Permission.delete(owner)],
-    };
     try {
       await databases.createDocument({ ...request, data: runData(userId, run) });
     } catch (error) {
+      if (error instanceof AppwriteException && error.code === 409) {
+        if (run.mode === "snippet" && run.snippetLength) {
+          await databases.updateDocument({
+            databaseId: appwriteConfig.databaseId,
+            collectionId: appwriteConfig.runsCollectionId,
+            documentId: id,
+            data: { snippetLength: run.snippetLength },
+          });
+        }
+        markSynced(key);
+        return;
+      }
       // Keep cloud history working during the short schema rollout window.
       if (!(error instanceof AppwriteException) || error.code !== 400 || !run.snippetLength) throw error;
       const legacyData = runData(userId, run);
       delete legacyData.snippetLength;
       await databases.createDocument({ ...request, data: legacyData });
+      fullySynced = false;
     }
   } catch (error) {
-    if (!(error instanceof AppwriteException) || error.code !== 409) throw error;
+    // Missing optional snippetLength schema must not block the rest of cloud sync.
+    if (!(error instanceof AppwriteException) || error.code !== 400 || !run.snippetLength) throw error;
+    fullySynced = false;
   }
-  markSynced(key);
+  if (fullySynced) markSynced(key);
 }
 
 export async function syncLocalRuns(userId: string, runs: RunResult[]): Promise<void> {

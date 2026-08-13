@@ -33,6 +33,7 @@ Indexes:
 | `sessionId` | string (36) | no |
 | `language` | string (64) | yes |
 | `mode` | enum: `snippet`, `timed`, `zen` | yes |
+| `snippetLength` | string (10): `short`, `medium`, `long` | no |
 | `durationMs` | integer | yes |
 | `durationSeconds` | integer | no |
 | `wpm` | float | yes |
@@ -55,8 +56,10 @@ Permissions:
 Indexes:
 
 - `userId`, `$createdAt` descending
-- `verified`, `mode`, `durationSeconds`, `wpm` descending
-- `verified`, `language`, `mode`, `durationSeconds`, `wpm` descending
+- `mode`, `snippetLength`, `wpm` descending
+- `mode`, `durationSeconds`, `wpm` descending
+- `language`, `mode`, `snippetLength`, `wpm` descending
+- `language`, `mode`, `durationSeconds`, `wpm` descending
 
 ## `run_sessions`
 

@@ -214,6 +214,7 @@ html {
   color: var(--syntax-plain);
   background: var(--editor-bg);
   border-color: var(--editor-border);
+  view-transition-name: codey-editor;
   backdrop-filter: blur(18px);
   box-shadow: 0 24px 70px hsl(0 0% 10% / 0.16), 0 1px 0 hsl(0 0% 100% / 0.7) inset;
 }
@@ -300,6 +301,19 @@ html {
 
 @media (min-width: 768px) {
   .code-window-focus { inset: 24px; }
+}
+
+::view-transition-group(codey-editor) {
+  z-index: 110;
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(.2, .82, .2, 1);
+}
+
+::view-transition-old(codey-editor),
+::view-transition-new(codey-editor) {
+  overflow: clip;
+  border-radius: 18px;
+  mix-blend-mode: normal;
 }
 
 .code-viewport::-webkit-scrollbar { width: 10px; height: 10px; }
