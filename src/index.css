@@ -299,6 +299,21 @@ html {
   --syntax-plain: #f8f8f2; --syntax-keyword: #ff79c6; --syntax-string: #f1fa8c; --syntax-comment: #6272a4;
   --syntax-number: #bd93f9; --syntax-function: #50fa7b; --syntax-type: #8be9fd; --syntax-operator: #ff79c6; --syntax-property: #8be9fd;
 }
+[data-editor-theme="one-dark"] .code-window {
+  --editor-bg: #282c34; --editor-chrome: #21252b; --editor-border: #3e4451;
+  --syntax-plain: #abb2bf; --syntax-keyword: #c678dd; --syntax-string: #98c379; --syntax-comment: #5c6370;
+  --syntax-number: #d19a66; --syntax-function: #61afef; --syntax-type: #e5c07b; --syntax-operator: #56b6c2; --syntax-property: #e06c75;
+}
+[data-editor-theme="nord"] .code-window {
+  --editor-bg: #2e3440; --editor-chrome: #242933; --editor-border: #434c5e;
+  --syntax-plain: #d8dee9; --syntax-keyword: #81a1c1; --syntax-string: #a3be8c; --syntax-comment: #616e88;
+  --syntax-number: #b48ead; --syntax-function: #88c0d0; --syntax-type: #8fbcbb; --syntax-operator: #81a1c1; --syntax-property: #d8dee9;
+}
+[data-editor-theme="synthwave"] .code-window {
+  --editor-bg: #262335; --editor-chrome: #1a1726; --editor-border: #463465;
+  --syntax-plain: #f0eff1; --syntax-keyword: #fef445; --syntax-string: #ff7edb; --syntax-comment: #614d85;
+  --syntax-number: #f97e72; --syntax-function: #36f9f6; --syntax-type: #fe4450; --syntax-operator: #fef445; --syntax-property: #72f1b8;
+}
 
 .code-viewport {
   height: clamp(20rem, 48vh, 32rem);
