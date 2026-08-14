@@ -6,6 +6,7 @@ import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM, isRankEligible, isWithinLengthSpec
 // Keep the pre-rename key to retain existing sync markers.
 const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v3";
 const inFlightRunUploads = new Map<string, Promise<void>>();
+const inFlightLeaderboardRequests = new Map<string, Promise<CloudRun[]>>();
 
 export interface CloudProfile extends Models.Document {
   githubUsername?: string;
@@ -296,7 +297,7 @@ function buildQueries(filters: LeaderboardFilters, cursor?: string): string[] {
  * a single fetched page would shrink the board to however many distinct users
  * happened to appear in it.
  */
-export async function listLeaderboard(filters: LeaderboardFilters = {}): Promise<CloudRun[]> {
+async function fetchLeaderboard(filters: LeaderboardFilters): Promise<CloudRun[]> {
   if (!databases) return [];
 
   const ranked: CloudRun[] = [];
@@ -347,13 +348,37 @@ export async function listLeaderboard(filters: LeaderboardFilters = {}): Promise
   return ranked;
 }
 
+export function listLeaderboard(filters: LeaderboardFilters = {}): Promise<CloudRun[]> {
+  const requestKey = JSON.stringify({
+    language: filters.language ?? "All",
+    mode: filters.mode ?? "all",
+    durationSeconds: filters.durationSeconds ?? null,
+    snippetLength: filters.snippetLength ?? null,
+    verifiedOnly: filters.verifiedOnly ?? false,
+  });
+  const existingRequest = inFlightLeaderboardRequests.get(requestKey);
+  if (existingRequest) return existingRequest;
+
+  const request = fetchLeaderboard(filters).finally(() => {
+    inFlightLeaderboardRequests.delete(requestKey);
+  });
+  inFlightLeaderboardRequests.set(requestKey, request);
+  return request;
+}
+
 export async function listProfiles(userIds: string[]): Promise<Map<string, CloudProfile>> {
   if (!databases || userIds.length === 0) return new Map();
+  const databaseClient = databases;
   const uniqueIds = Array.from(new Set(userIds));
-  const profiles = await Promise.allSettled(uniqueIds.map((id) => getProfile(id)));
-  return new Map(profiles
-    .filter((result): result is PromiseFulfilledResult<CloudProfile | null> => result.status === "fulfilled")
-    .map((result) => result.value)
-    .filter((profile): profile is CloudProfile => Boolean(profile))
-    .map((profile) => [profile.$id, profile]));
+  const chunks: string[][] = [];
+  for (let index = 0; index < uniqueIds.length; index += 100) {
+    chunks.push(uniqueIds.slice(index, index + 100));
+  }
+
+  const responses = await Promise.all(chunks.map((ids) => databaseClient.listDocuments<CloudProfile>({
+    databaseId: appwriteConfig.databaseId,
+    collectionId: appwriteConfig.profilesCollectionId,
+    queries: [Query.equal("$id", ids), Query.limit(ids.length)],
+  })));
+  return new Map(responses.flatMap((response) => response.documents).map((profile) => [profile.$id, profile]));
 }

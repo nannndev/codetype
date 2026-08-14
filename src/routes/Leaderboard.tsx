@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, LoaderCircle, Share2, Timer, Trophy, Zap } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { getLanguages } from "@/data";
-import { listLeaderboard, listProfiles, type CloudProfile, type CloudRun } from "@/lib/cloud";
+import { type CloudProfile, type CloudRun } from "@/lib/cloud";
+import { getLeaderboardView } from "@/lib/leaderboard-api";
 import type { SnippetLength, RunResult } from "@/types";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
@@ -145,16 +146,15 @@ export default function Leaderboard() {
     setLoading(true);
     setError(false);
     setErrorMessage("");
-    void listLeaderboard({
+    void getLeaderboardView({
       language,
       mode: board,
       snippetLength: board === "snippet" ? snippetLength : undefined,
       durationSeconds: board === "timed" ? duration : undefined,
       verifiedOnly: true,
     })
-      .then(async (nextRuns) => {
+      .then(({ runs: nextRuns, profiles: nextProfiles }) => {
         setRuns(nextRuns);
-        const nextProfiles = await listProfiles(nextRuns.map((run) => run.userId));
         setProfiles(nextProfiles);
       })
       .catch((loadError) => {
