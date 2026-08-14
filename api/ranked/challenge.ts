@@ -1,8 +1,8 @@
-import { Client, Databases, Account, Permission, Role } from 'appwrite';
+import { Client, Databases, Account, Permission, Role } from 'node-appwrite';
 import crypto from 'node:crypto';
 import { SNIPPETS } from '../../src/data/snippets.js';
 import { SNIPPET_LENGTH_SPEC } from '../../src/utils/ranking.js';
-import type { SnippetLength, TestMode } from '../../src/types/index.js';
+import type { SnippetLength, TestMode } from '../../src/types.js';
 
 interface ApiRequest {
   method?: string;
@@ -126,12 +126,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       },
       permissions: [
         Permission.read(owner),
-        Permission.update(owner),
-        Permission.delete(owner),
       ],
     });
   } catch (dbError) {
     console.error('Failed to create run_session document:', dbError);
+    res.status(503).json({ error: 'Ranked verification service could not create a challenge session.' });
+    return;
   }
 
   res.status(200).json({

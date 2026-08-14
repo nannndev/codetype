@@ -1,6 +1,6 @@
-import { Client, Databases, Account, Permission, Role } from 'appwrite';
+import { Client, Databases, Account, Permission, Role } from 'node-appwrite';
 import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM } from '../../src/utils/ranking.js';
-import type { SnippetLength, TestMode } from '../../src/types/index.js';
+import type { SnippetLength, TestMode } from '../../src/types.js';
 
 interface ApiRequest {
   method?: string;
@@ -131,8 +131,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       res.status(400).json({ error: 'Challenge hash mismatch.' });
       return;
     }
-  } catch {
-    // If session doc doesn't exist yet in standalone dev mode, proceed with server-authoritative validation
+  } catch (sessionError) {
+    console.error('Failed to verify Ranked session:', sessionError);
+    res.status(400).json({ error: 'Ranked session was not found or could not be verified.' });
+    return;
   }
 
   // Authoritative Metric Recalculation
@@ -176,8 +178,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Create Verified Run Document
   const documentId = `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  const owner = Role.user(userId);
-
   try {
     const runDocument = await databases.createDocument({
       databaseId: APPWRITE_DATABASE_ID,
@@ -204,8 +204,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       },
       permissions: [
         Permission.read(Role.any()),
-        Permission.update(owner),
-        Permission.delete(owner),
       ],
     });
 
