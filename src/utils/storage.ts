@@ -203,3 +203,39 @@ export function getPersonalBest(
     return pbKey === key;
   }) ?? null;
 }
+
+export function getBestRunForGhost(
+  snippetId?: string,
+  language?: string,
+  mode: TestMode = 'snippet',
+  duration: number | null = null,
+  snippetLength?: RunResult['snippetLength'],
+): RunResult | null {
+  const history = getHistory();
+  if (history.length === 0) return null;
+
+  // First priority: match exact snippetId in history with highest WPM
+  if (snippetId) {
+    const matchingSnippetRuns = history.filter(
+      (r) => r.snippetId === snippetId && r.mode === mode,
+    );
+    if (matchingSnippetRuns.length > 0) {
+      return matchingSnippetRuns.reduce((best, cur) => (cur.wpm > best.wpm ? cur : best));
+    }
+  }
+
+  // Second priority: match language, mode, duration, snippetLength with highest WPM
+  const matchingCategoryRuns = history.filter((r) => {
+    if (r.mode !== mode) return false;
+    if (language && language !== 'All' && r.language !== language) return false;
+    if (mode === 'timed' && r.duration !== duration) return false;
+    if (mode === 'snippet' && snippetLength && r.snippetLength !== snippetLength) return false;
+    return true;
+  });
+
+  if (matchingCategoryRuns.length > 0) {
+    return matchingCategoryRuns.reduce((best, cur) => (cur.wpm > best.wpm ? cur : best));
+  }
+
+  return null;
+}

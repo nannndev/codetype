@@ -21,6 +21,7 @@ interface AuthContextValue {
   syncStatus: SyncStatus;
   login: () => void;
   logout: () => Promise<void>;
+  retrySync: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -115,6 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(isAppwriteConfigured);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
 
+  const retrySync = useCallback(async () => {
+    if (!user) return;
+    setSyncStatus("syncing");
+    try {
+      await syncLocalRuns(user.$id, ensureHistoryIds());
+      setSyncStatus("synced");
+    } catch (syncError) {
+      console.error("Unable to sync local runs", syncError);
+      setSyncStatus("error");
+    }
+  }, [user]);
+
   const refresh = useCallback(async () => {
     if (!account) {
       setLoading(false);
@@ -165,7 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncStatus,
     login: signInWithGitHub,
     logout,
-  }), [user, loading, syncStatus, logout]);
+    retrySync,
+  }), [user, loading, syncStatus, logout, retrySync]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -7,13 +7,14 @@ import { ResultsScreen } from "@/components/ResultsScreen";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { ModeSelector } from "@/components/ModeSelector";
 import { CustomPractice } from "@/components/CustomPractice";
+import { WeakKeyDrillModal } from "@/components/WeakKeyDrillModal";
 import { DailyGoals } from "@/components/DailyGoals";
 import { usePreferences } from "@/components/PreferencesProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/components/AuthProvider";
 import { uploadRun } from "@/lib/cloud";
-import { useGame, useKeyboardSound } from "@/hooks";
+import { useGame, useKeyboardSound, useGhostRunner, useRankedGame } from "@/hooks";
 import { useSnippets } from "@/hooks/useSnippets";
 import { getLanguages } from "@/data";
 import {
@@ -26,10 +27,15 @@ import {
   updateStreak,
   getPersonalBest,
 } from "@/utils";
+import { isRankEligible } from "@/utils/ranking";
 import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
+
+import { RankedAuthModal } from "@/components/RankedAuthModal";
 
 export default function App() {
   const { user } = useAuth();
+  const ranked = useRankedGame();
+  const [showRankedAuthModal, setShowRankedAuthModal] = useState(false);
   const { preferences, setPreference } = usePreferences();
   const userIdRef = useRef<string | null>(user?.$id ?? null);
   const [language, setLanguage] = useState("All");
@@ -46,6 +52,7 @@ export default function App() {
     status,
     elapsedMs,
     wpmSnapshots,
+    progressSnapshots,
     handleKey: engineHandleKey,
     reset,
     stop,
@@ -64,7 +71,7 @@ export default function App() {
   const [editorFocusMode, setEditorFocusMode] = useState(false);
   const playKeyboardSound = useKeyboardSound(preferences.keyboardSound, preferences.keyboardSoundProfile, preferences.keyboardSoundVolume, preferences.keyboardSoundTuning);
   const containerRef = useRef<HTMLDivElement>(null);
-  const previousSelectionRef = useRef({ language, mode, duration });
+  const previousSelectionRef = useRef({ language, mode, duration, snippetLength: preferences.snippetLength });
 
   useEffect(() => {
     userIdRef.current = user?.$id ?? null;
@@ -82,15 +89,16 @@ export default function App() {
     const previous = previousSelectionRef.current;
     const selectionChanged = previous.language !== language
       || previous.mode !== mode
-      || previous.duration !== duration;
+      || previous.duration !== duration
+      || previous.snippetLength !== preferences.snippetLength;
 
-    previousSelectionRef.current = { language, mode, duration };
+    previousSelectionRef.current = { language, mode, duration, snippetLength: preferences.snippetLength };
     if (selectionChanged && (status === "idle" || status === "finished")) {
       setResult(null);
       reset();
       focusWorkspace();
     }
-  }, [language, mode, duration, status, reset, focusWorkspace]);
+  }, [language, mode, duration, preferences.snippetLength, status, reset, focusWorkspace]);
 
   useEffect(() => {
     if (status === "finished" && keystrokes > 0) {
@@ -125,6 +133,7 @@ export default function App() {
         targetChars: snippet.code.length,
         sourceType: snippet.sourceType ?? "public",
         wpmSnapshots,
+        progressSnapshots,
         snippetLength: config.mode === "snippet" ? preferences.snippetLength : undefined,
       };
       setResult(r);
@@ -135,14 +144,26 @@ export default function App() {
         saveResult(r);
         updateStreak();
         setGoalRefreshKey((key) => key + 1);
-        if (userIdRef.current) void uploadRun(userIdRef.current, r)
-          .then(() => setGoalRefreshKey((key) => key + 1))
-          .catch((error) => console.error("Unable to save cloud run", error));
+        if (ranked.isRanked && user) {
+          void ranked.submit({
+            completedCode: snippet.code,
+            mistakes,
+            totalMs: Math.round(elapsedMs),
+            language: snippet.language,
+            mode: config.mode,
+            snippetLength: preferences.snippetLength,
+            durationSeconds: config.duration ?? undefined,
+          });
+        } else if (userIdRef.current && isRankEligible(r)) {
+          void uploadRun(userIdRef.current, r)
+            .then(() => setGoalRefreshKey((key) => key + 1))
+            .catch((error) => console.error("Unable to save cloud run", error));
+        }
       } catch {
         // localStorage may be unavailable
       }
     }
-  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars]);
+  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars, ranked, user, preferences.snippetLength, config.duration]);
 
   const handleRetry = useCallback(() => {
     setResult(null);
@@ -214,6 +235,7 @@ export default function App() {
 
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
+        if (ranked.isRanked) ranked.recordKeypress();
         playKeyboardSound(e.key);
         engineHandleKey(e.key);
         return;
@@ -221,6 +243,7 @@ export default function App() {
 
       if (e.key === "Backspace") {
         e.preventDefault();
+        if (ranked.isRanked) ranked.recordKeypress();
         playKeyboardSound("Backspace");
         engineHandleKey("Backspace");
         return;
@@ -270,8 +293,22 @@ export default function App() {
 
   const languages = useMemo(() => getLanguages(), []);
 
+  const ghostState = useGhostRunner({
+    enabled: preferences.ghostRunner,
+    snippetId: snippet.id,
+    snippetCodeLength: snippet.code.length,
+    language: snippet.language,
+    mode: config.mode,
+    duration: config.duration,
+    snippetLength: preferences.snippetLength,
+    status,
+    elapsedMs,
+    userWpm: wpm,
+    userInputLength: input.length,
+  });
+
   const handleCustomSnippet = useCallback((nextSnippet: import("@/types").Snippet) => {
-    previousSelectionRef.current = { language: nextSnippet.language, mode: "snippet", duration: null };
+    previousSelectionRef.current = { language: nextSnippet.language, mode: "snippet", duration: null, snippetLength: preferences.snippetLength };
     setCustomSnippet(nextSnippet);
     setLanguage(nextSnippet.language);
     setMode("snippet");
@@ -279,17 +316,17 @@ export default function App() {
     setResult(null);
     loadSnippet(nextSnippet);
     focusWorkspace();
-  }, [loadSnippet, focusWorkspace]);
+  }, [loadSnippet, focusWorkspace, preferences.snippetLength]);
 
   const exitCustomPractice = useCallback(() => {
     setCustomSnippet(null);
     setResult(null);
     const nextSnippet = getPublicSnippet();
     setLanguage("All");
-    previousSelectionRef.current = { language: "All", mode: "snippet", duration: null };
+    previousSelectionRef.current = { language: "All", mode: "snippet", duration: null, snippetLength: preferences.snippetLength };
     loadSnippet(nextSnippet);
     focusWorkspace();
-  }, [getPublicSnippet, loadSnippet, focusWorkspace]);
+  }, [getPublicSnippet, loadSnippet, focusWorkspace, preferences.snippetLength]);
 
   const handleNextSnippet = useCallback(() => {
     setResult(null);
@@ -312,9 +349,92 @@ export default function App() {
         <Header />
 
         {result ? (
-          <ResultsScreen result={result} previousBest={previousBest} onRetry={handleRetry} onNext={handleNextSnippet} onDrill={handleCustomSnippet} />
+          <ResultsScreen result={result} previousBest={previousBest} verifiedResult={ranked.verifiedResult} onRetry={handleRetry} onNext={handleNextSnippet} onDrill={handleCustomSnippet} />
         ) : (
           <main className="mt-8 flex flex-col gap-6 animate-scale-in">
+            {/* Top Activity Type Switcher: Practice vs Ranked */}
+            <div className="flex overflow-hidden rounded-2xl border bg-card/70 p-1.5 backdrop-blur-md shadow-lg">
+              <button
+                type="button"
+                disabled={status === "running"}
+                onClick={() => {
+                  if (ranked.isRanked) ranked.exitRanked();
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition-all duration-200 ${
+                  !ranked.isRanked
+                    ? "bg-foreground text-background shadow-lg scale-[1.01]"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <span>☕ Practice Mode</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={status === "running"}
+                onClick={() => {
+                  if (!user) {
+                    setShowRankedAuthModal(true);
+                    return;
+                  }
+                  if (!ranked.isRanked) {
+                    void ranked.fetchChallenge({
+                      language,
+                      mode,
+                      snippetLength: preferences.snippetLength,
+                      durationSeconds: duration ?? 30,
+                    }).then((ch) => {
+                      loadSnippet({
+                        id: ch.sessionId,
+                        language: ch.language,
+                        code: ch.snippetCode,
+                        sourceType: "public",
+                      });
+                    });
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition-all duration-200 ${
+                  ranked.isRanked
+                    ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-zinc-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] scale-[1.01]"
+                    : "text-amber-500 hover:bg-amber-500/10"
+                }`}
+              >
+                <span>⚡ Ranked Match</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-950/20 text-current">
+                  {ranked.isRanked ? "ACTIVE" : "RANKED"}
+                </span>
+              </button>
+            </div>
+
+            {/* Ranked Competitive Banner */}
+            {ranked.isRanked && (
+              <div className="relative overflow-hidden rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-yellow-500/15 p-4 backdrop-blur-md shadow-[0_0_40px_rgba(245,158,11,0.15)] animate-fade-in-up">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-10 place-items-center rounded-xl bg-amber-500 text-zinc-950 font-black text-lg shadow-md">
+                      ⚡
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold tracking-tight text-amber-400 flex items-center gap-2">
+                        RANKED MATCH ACTIVE
+                        <span className="size-2 rounded-full bg-amber-400 animate-ping" />
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Official competitive run · Submitted directly to the Leaderboard</p>
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={ranked.exitRanked} className="border-amber-500/40 text-amber-400 hover:bg-amber-500/20">
+                    Switch to Practice
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!user && ranked.isRanked && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-400 font-semibold flex items-center justify-between gap-2">
+                <span>⚠️ Sign in with GitHub is required to record server-verified runs on the Ranked Leaderboard.</span>
+              </div>
+            )}
+
             <ModeSelector
               mode={mode}
               duration={duration}
@@ -331,7 +451,11 @@ export default function App() {
                   {(["short", "medium", "long"] as const).map((item) => <button key={item} type="button" disabled={status === "running" || Boolean(customSnippet)} onClick={() => setPreference("snippetLength", item)} className={`rounded-md px-3 py-1.5 text-[11px] font-medium capitalize transition-colors disabled:opacity-40 ${preferences.snippetLength === item ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"}`}>{item}</button>)}
                 </div>
               </label>
-              <CustomPractice onLoad={handleCustomSnippet} />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <WeakKeyDrillModal onDrill={handleCustomSnippet} />
+                <CustomPractice onLoad={handleCustomSnippet} />
+              </div>
             </div>
 
             {customSnippet && <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed bg-card/60 px-3 py-2 text-xs"><span><strong>{customSnippet.id.startsWith("drill-") ? "Weak-key drill" : "Local practice"}</strong> · not saved or ranked</span><button type="button" onClick={exitCustomPractice} className="text-muted-foreground hover:text-foreground">Exit {customSnippet.id.startsWith("drill-") ? "drill" : "custom"}</button></div>}
@@ -345,6 +469,9 @@ export default function App() {
               secondsRemaining={secondsRemaining}
               snippetsCompleted={snippetsCompleted}
               totalChars={input.length}
+              ghostState={ghostState}
+              onToggleGhost={() => setPreference("ghostRunner", !preferences.ghostRunner)}
+              isGhostEnabled={preferences.ghostRunner}
             />
 
             <LanguagePicker
@@ -371,6 +498,8 @@ export default function App() {
               }}
               onRestart={handleRetry}
               isRunning={status === "running"}
+              ghostCharIndex={ghostState.hasPb ? ghostState.ghostCharIndex : null}
+              ghostWpm={ghostState.hasPb ? ghostState.targetWpm : null}
             />
 
             <DailyGoals refreshKey={goalRefreshKey} compact />
@@ -402,6 +531,7 @@ export default function App() {
           </main>
         )}
       </div>
+      <RankedAuthModal isOpen={showRankedAuthModal} onClose={() => setShowRankedAuthModal(false)} />
       <Footer />
     </div>
   );

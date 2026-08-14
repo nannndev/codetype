@@ -23,3 +23,4 @@
 - Wants broad programming-language coverage (e.g., PHP, Dart, Flutter) beyond just common languages. Confidence: 0.5
 - Prefers a meaningful logo monogram (letters forming a recognizable shape) over plain text letters, and cares about brand uniqueness when naming a product. Confidence: 0.5
 - Uses Vercel (deploy + analytics) and Appwrite (backend/DB/auth) as preferred tooling. Confidence: 0.5
+- Cares about pleasant, polished audio/sound feedback in interactive apps (e.g., keyboard sounds) and wants the sound design to feel satisfying rather than annoying. Confidence: 0.6

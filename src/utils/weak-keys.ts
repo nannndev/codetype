@@ -29,7 +29,7 @@ export interface WeakKeyReport {
 /** Runs older than this are ignored — old habits are not current weaknesses. */
 const MAX_RUNS = 60;
 /** Below this, per-character rates are noise rather than signal. */
-const MIN_ERRORS = 12;
+const MIN_ERRORS = 3;
 /**
  * Additive smoothing constant for the error rate. Rare characters get thin
  * exposure estimates, and `errors / exposure` on a tiny denominator explodes —
@@ -38,8 +38,8 @@ const MIN_ERRORS = 12;
  * lets evidence, not luck, decide the ranking.
  */
 const SMOOTHING = 30;
-/** Ignore one-off slips entirely; they are typos, not weaknesses. */
-const MIN_CHAR_ERRORS = 3;
+/** Minimal character errors required to highlight a weak key. */
+const MIN_CHAR_ERRORS = 1;
 
 let frequencyCache: Map<string, number> | null = null;
 

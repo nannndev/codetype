@@ -36,7 +36,7 @@ function average(values: number[]): number {
 }
 
 export default function Profile() {
-  const { user, loading, configured, login, syncStatus } = useAuth();
+  const { user, loading, configured, login, syncStatus, retrySync } = useAuth();
   const { userId } = useParams();
   const viewedUserId = userId || user?.$id;
   const isOwnProfile = Boolean(user && viewedUserId === user.$id);
@@ -119,9 +119,17 @@ export default function Profile() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {isOwnProfile && (
-                    <div className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => void retrySync()}
+                      className={`flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5 text-xs transition-colors ${
+                        syncStatus === "error"
+                          ? "border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer"
+                          : "text-muted-foreground"
+                      }`}
+                    >
                       <SyncIcon className={`size-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} /> {syncLabel}
-                    </div>
+                    </button>
                   )}
                   {resolvedGithubUsername && (
                     <a

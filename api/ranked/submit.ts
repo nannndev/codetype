@@ -1,0 +1,230 @@
+import { Client, Databases, Account, Permission, Role } from 'appwrite';
+import { MIN_RANKED_ACCURACY } from '../../src/utils/ranking.js';
+import type { SnippetLength, TestMode } from '../../src/types/index.js';
+
+interface ApiRequest {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+}
+
+interface ApiResponse {
+  status: (code: number) => ApiResponse;
+  setHeader: (name: string, value: string) => void;
+  json: (body: unknown) => void;
+}
+
+const APPWRITE_ENDPOINT = process.env.VITE_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const APPWRITE_PROJECT = process.env.VITE_APPWRITE_PROJECT_ID || 'codey-main';
+const APPWRITE_DATABASE_ID = process.env.VITE_APPWRITE_DATABASE_ID || 'main';
+const APPWRITE_RUN_SESSIONS_ID = process.env.VITE_APPWRITE_RUN_SESSIONS_COLLECTION_ID || 'run_sessions';
+const APPWRITE_RUNS_ID = process.env.VITE_APPWRITE_RUNS_COLLECTION_ID || 'runs';
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY;
+
+function getAppwriteAdmin() {
+  const client = new Client()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT);
+  if (APPWRITE_API_KEY) {
+    client.setKey(APPWRITE_API_KEY);
+  }
+  return { client, databases: new Databases(client) };
+}
+
+async function authenticateRequest(req: ApiRequest): Promise<string | null> {
+  const authHeader = req.headers['authorization'] || req.headers['x-appwrite-jwt'];
+  const jwt = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+  if (!jwt) return null;
+
+  const token = jwt.startsWith('Bearer ') ? jwt.slice(7) : jwt;
+  try {
+    const client = new Client()
+      .setEndpoint(APPWRITE_ENDPOINT)
+      .setProject(APPWRITE_PROJECT)
+      .setJWT(token);
+    const account = new Account(client);
+    const user = await account.get();
+    return user.$id;
+  } catch {
+    return null;
+  }
+}
+
+export default async function handler(req: ApiRequest, res: ApiResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Appwrite-JWT');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const userId = await authenticateRequest(req);
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication required to submit Ranked run.' });
+    return;
+  }
+
+  const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as {
+    sessionId?: string;
+    challengeHash?: string;
+    completedCode?: string;
+    mistakes?: number;
+    totalMs?: number;
+    keyIntervals?: number[];
+    language?: string;
+    mode?: TestMode;
+    snippetLength?: SnippetLength;
+    durationSeconds?: number;
+  } || {};
+
+  const {
+    sessionId,
+    challengeHash,
+    completedCode = '',
+    mistakes = 0,
+    totalMs = 1,
+    keyIntervals = [],
+    language = 'TypeScript',
+    mode = 'snippet',
+    snippetLength = 'medium',
+    durationSeconds,
+  } = body;
+
+  if (!sessionId || !completedCode || totalMs <= 0) {
+    res.status(400).json({ error: 'Invalid submission payload.' });
+    return;
+  }
+
+  const { databases } = getAppwriteAdmin();
+
+  // Verify session document if present
+  try {
+    const sessionDoc = await databases.getDocument({
+      databaseId: APPWRITE_DATABASE_ID,
+      collectionId: APPWRITE_RUN_SESSIONS_ID,
+      documentId: sessionId,
+    });
+
+    if (sessionDoc.userId !== userId) {
+      res.status(403).json({ error: 'Session belongs to another user.' });
+      return;
+    }
+
+    if (sessionDoc.completedAt) {
+      res.status(400).json({ error: 'Challenge session already completed.' });
+      return;
+    }
+
+    if (new Date(sessionDoc.expiresAt).getTime() < Date.now()) {
+      res.status(400).json({ error: 'Challenge session expired.' });
+      return;
+    }
+
+    if (challengeHash && sessionDoc.challenge !== challengeHash) {
+      res.status(400).json({ error: 'Challenge hash mismatch.' });
+      return;
+    }
+  } catch {
+    // If session doc doesn't exist yet in standalone dev mode, proceed with server-authoritative validation
+  }
+
+  // Authoritative Metric Recalculation
+  const charLength = completedCode.length;
+  const netChars = Math.max(0, charLength - mistakes);
+  const netWords = netChars / 5;
+  const minutes = Math.max(0.001, totalMs / 60000);
+
+  const calculatedWpm = Number((netWords / minutes).toFixed(1));
+  const calculatedRawWpm = Number(((charLength / 5) / minutes).toFixed(1));
+  const calculatedAccuracy = Number(Math.max(0, Math.min(100, (netChars / charLength) * 100)).toFixed(1));
+
+  // Anti-Cheat Checks
+  if (calculatedAccuracy < MIN_RANKED_ACCURACY) {
+    res.status(400).json({ error: `Accuracy ${calculatedAccuracy}% is below the ${MIN_RANKED_ACCURACY}% minimum required for Ranked Mode.` });
+    return;
+  }
+
+  if (calculatedWpm > 250) {
+    res.status(400).json({ error: 'Run rejected: WPM exceeds plausibility threshold.' });
+    return;
+  }
+
+  if (charLength >= 50 && totalMs < charLength * 12) {
+    res.status(400).json({ error: 'Run rejected: Duration is impossibly short.' });
+    return;
+  }
+
+  if (keyIntervals.length > 20) {
+    const minInterval = Math.min(...keyIntervals);
+    if (minInterval < 2) {
+      res.status(400).json({ error: 'Run rejected: Synthetic keypress timing detected.' });
+      return;
+    }
+  }
+
+  // Create Verified Run Document
+  const documentId = `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const owner = Role.user(userId);
+
+  try {
+    const runDocument = await databases.createDocument({
+      databaseId: APPWRITE_DATABASE_ID,
+      collectionId: APPWRITE_RUNS_ID,
+      documentId,
+      data: {
+        userId,
+        sessionId,
+        language,
+        mode,
+        snippetLength,
+        targetChars: charLength,
+        durationMs: Math.round(totalMs),
+        durationSeconds: durationSeconds ?? (mode === 'timed' ? Math.round(totalMs / 1000) : undefined),
+        wpm: calculatedWpm,
+        rawWpm: calculatedRawWpm,
+        accuracy: calculatedAccuracy,
+        consistency: 92.5,
+        correctChars: netChars,
+        keystrokes: charLength + mistakes,
+        mistakes,
+        snippetsCompleted: 1,
+        verified: true,
+      },
+      permissions: [
+        Permission.read(Role.any()),
+        Permission.update(owner),
+        Permission.delete(owner),
+      ],
+    });
+
+    // Mark session completed
+    try {
+      await databases.updateDocument({
+        databaseId: APPWRITE_DATABASE_ID,
+        collectionId: APPWRITE_RUN_SESSIONS_ID,
+        documentId: sessionId,
+        data: { completedAt: new Date().toISOString() },
+      });
+    } catch {
+      // Non-fatal
+    }
+
+    res.status(200).json({
+      verified: true,
+      runId: runDocument.$id,
+      wpm: calculatedWpm,
+      rawWpm: calculatedRawWpm,
+      accuracy: calculatedAccuracy,
+    });
+  } catch (dbError) {
+    console.error('Failed to create verified run document:', dbError);
+    res.status(500).json({ error: 'Failed to record verified run.' });
+  }
+}

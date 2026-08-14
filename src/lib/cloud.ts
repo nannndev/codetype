@@ -1,9 +1,10 @@
 import { AppwriteException, Permission, Query, Role, type Models } from "appwrite";
 import type { RunResult, Settings, SnippetLength, TestMode } from "@/types";
 import { account, appwriteConfig, databases } from "@/lib/appwrite";
+import { MIN_RANKED_ACCURACY, isRankEligible, isWithinLengthSpec } from "@/utils/ranking";
 
 // Keep the pre-rename key to retain existing sync markers.
-const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v2";
+const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v3";
 
 export interface CloudProfile extends Models.Document {
   githubUsername?: string;
@@ -31,6 +32,7 @@ export interface CloudRun extends Models.Document {
   sourceRepo?: string;
   verified: boolean;
   snippetLength?: SnippetLength;
+  targetChars?: number;
 }
 
 function runKey(run: RunResult): string {
@@ -66,6 +68,9 @@ function markSynced(key: string): void {
   }
 }
 
+/** Attributes added after the first schema rollout; a project missing them must not break sync. */
+const OPTIONAL_ATTRIBUTES = ["snippetLength", "targetChars"] as const;
+
 function runData(userId: string, run: RunResult): Record<string, unknown> {
   const data: Record<string, unknown> = {
     userId,
@@ -83,9 +88,20 @@ function runData(userId: string, run: RunResult): Record<string, unknown> {
     verified: false,
   };
   if (run.mode === "timed") data.durationSeconds = Math.max(1, Math.round(run.duration / 1000));
-  if (run.mode === "snippet" && run.snippetLength) data.snippetLength = run.snippetLength;
+  if (run.mode === "snippet") data.snippetLength = run.snippetLength ?? "medium";
+  if (run.mode === "snippet" && run.targetChars !== undefined) data.targetChars = Math.max(0, Math.round(run.targetChars));
   if (run.sourceRepo) data.sourceRepo = run.sourceRepo;
   return data;
+}
+
+function withoutOptionalAttributes(data: Record<string, unknown>): Record<string, unknown> {
+  const legacy = { ...data };
+  for (const attribute of OPTIONAL_ATTRIBUTES) delete legacy[attribute];
+  return legacy;
+}
+
+function hasOptionalAttributes(data: Record<string, unknown>): boolean {
+  return OPTIONAL_ATTRIBUTES.some((attribute) => data[attribute] !== undefined);
 }
 
 export async function uploadRun(userId: string, run: RunResult): Promise<void> {
@@ -101,40 +117,53 @@ export async function uploadRun(userId: string, run: RunResult): Promise<void> {
     documentId: id,
     permissions: [Permission.read(Role.any()), Permission.update(owner), Permission.delete(owner)],
   };
+  const data = runData(userId, run);
+  const optional = hasOptionalAttributes(data);
   let fullySynced = true;
   try {
     try {
-      await databases.createDocument({ ...request, data: runData(userId, run) });
+      await databases.createDocument({ ...request, data });
     } catch (error) {
       if (error instanceof AppwriteException && error.code === 409) {
-        if (run.mode === "snippet" && run.snippetLength) {
-          await databases.updateDocument({
-            databaseId: appwriteConfig.databaseId,
-            collectionId: appwriteConfig.runsCollectionId,
-            documentId: id,
-            data: { snippetLength: run.snippetLength },
-          });
+        // Document already exists in Appwrite database. Mark synced so it never blocks local sync retries.
+        if (optional) {
+          try {
+            await databases.updateDocument({
+              databaseId: appwriteConfig.databaseId,
+              collectionId: appwriteConfig.runsCollectionId,
+              documentId: id,
+              data: Object.fromEntries(OPTIONAL_ATTRIBUTES
+                .filter((attribute) => data[attribute] !== undefined)
+                .map((attribute) => [attribute, data[attribute]])),
+            });
+          } catch {
+            // Permission or update failure on pre-existing doc should not block sync.
+          }
         }
         markSynced(key);
         return;
       }
       // Keep cloud history working during the short schema rollout window.
-      if (!(error instanceof AppwriteException) || error.code !== 400 || !run.snippetLength) throw error;
-      const legacyData = runData(userId, run);
-      delete legacyData.snippetLength;
-      await databases.createDocument({ ...request, data: legacyData });
+      if (!(error instanceof AppwriteException) || error.code !== 400 || !optional) throw error;
+      await databases.createDocument({ ...request, data: withoutOptionalAttributes(data) });
       fullySynced = false;
     }
   } catch (error) {
-    // Missing optional snippetLength schema must not block the rest of cloud sync.
-    if (!(error instanceof AppwriteException) || error.code !== 400 || !run.snippetLength) throw error;
+    if (error instanceof AppwriteException && error.code === 409) {
+      markSynced(key);
+      return;
+    }
+    // Missing optional attributes must not block the rest of cloud sync.
+    if (!(error instanceof AppwriteException) || error.code !== 400 || !optional) throw error;
     fullySynced = false;
   }
+  // Leaving the key unmarked lets a later sync retry once the schema catches up.
   if (fullySynced) markSynced(key);
 }
 
 export async function syncLocalRuns(userId: string, runs: RunResult[]): Promise<void> {
-  for (const run of runs) await uploadRun(userId, run);
+  // Backlogged local runs face the same bar as live ones, so signing in cannot smuggle in unranked scores.
+  for (const run of runs) if (isRankEligible(run)) await uploadRun(userId, run);
 }
 
 export async function getProfile(userId: string): Promise<CloudProfile | null> {
@@ -188,43 +217,111 @@ export async function saveCloudGoals(goals: Settings["goals"]): Promise<void> {
   });
 }
 
-export async function listLeaderboard(filters: {
+export interface LeaderboardFilters {
   language?: string;
   mode?: TestMode;
   durationSeconds?: number;
   snippetLength?: SnippetLength;
-} = {}): Promise<CloudRun[]> {
-  if (!databases) return [];
-  const queries = [Query.orderDesc("wpm"), Query.limit(100)];
-  if (filters.language) queries.unshift(Query.equal("language", filters.language));
-  if (filters.mode) queries.unshift(Query.equal("mode", filters.mode));
+  verifiedOnly?: boolean;
+}
+
+const LEADERBOARD_SIZE = 100;
+const LEADERBOARD_PAGE = 200;
+/** Bounds how far paging will chase distinct typists when one user holds many top runs. */
+const LEADERBOARD_MAX_PAGES = 8;
+
+function matchesFilters(run: CloudRun, filters: LeaderboardFilters): boolean {
+  if (filters.verifiedOnly && !run.verified) return false;
+  if (filters.language && filters.language !== "All" && run.language !== filters.language) return false;
+  if (filters.mode && run.mode !== filters.mode) return false;
+  if (filters.mode === "timed" && filters.durationSeconds && run.durationSeconds !== filters.durationSeconds) return false;
+  if (filters.mode === "snippet") {
+    const runLength = run.snippetLength ?? "medium";
+    if (filters.snippetLength && runLength !== filters.snippetLength) return false;
+  }
+  return true;
+}
+
+/** The same fairness bar as local runs, applied to whatever the cloud already stores. */
+function isRankableCloudRun(run: CloudRun): boolean {
+  if (run.mode === "zen") return false;
+  if (run.accuracy < MIN_RANKED_ACCURACY) return false;
+  const runLength = run.snippetLength ?? "medium";
+  if (run.mode === "snippet" && !isWithinLengthSpec(runLength, run.targetChars)) return false;
+  return true;
+}
+
+function buildQueries(filters: LeaderboardFilters, cursor?: string): string[] {
+  const queries: string[] = [];
+  if (filters.verifiedOnly) queries.push(Query.equal("verified", true));
+  if (filters.language && filters.language !== "All") queries.push(Query.equal("language", filters.language));
+  if (filters.mode) queries.push(Query.equal("mode", filters.mode));
   if (filters.mode === "timed" && filters.durationSeconds) {
-    queries.unshift(Query.equal("durationSeconds", filters.durationSeconds));
+    queries.push(Query.equal("durationSeconds", filters.durationSeconds));
   }
-  if (filters.mode === "snippet" && filters.snippetLength) queries.unshift(Query.equal("snippetLength", filters.snippetLength));
-  try {
-    const response = await databases.listDocuments<CloudRun>({
-      databaseId: appwriteConfig.databaseId,
-      collectionId: appwriteConfig.runsCollectionId,
-      queries,
-    });
-    return response.documents;
-  } catch (error) {
-    // Some Appwrite projects may not have every composite leaderboard index yet.
-    if (!(error instanceof AppwriteException) || error.code !== 400) throw error;
-    const response = await databases.listDocuments<CloudRun>({
-      databaseId: appwriteConfig.databaseId,
-      collectionId: appwriteConfig.runsCollectionId,
-      queries: [Query.orderDesc("wpm"), Query.limit(500)],
-    });
-    return response.documents.filter((run) => {
-      if (filters.language && run.language !== filters.language) return false;
-      if (filters.mode && run.mode !== filters.mode) return false;
-      if (filters.mode === "timed" && filters.durationSeconds && run.durationSeconds !== filters.durationSeconds) return false;
-      if (filters.mode === "snippet" && filters.snippetLength && run.snippetLength !== filters.snippetLength) return false;
-      return true;
-    }).slice(0, 100);
+  if (filters.mode === "snippet" && filters.snippetLength) {
+    queries.push(Query.equal("snippetLength", filters.snippetLength));
   }
+  queries.push(Query.greaterThanEqual("accuracy", MIN_RANKED_ACCURACY));
+  queries.push(Query.orderDesc("wpm"), Query.limit(LEADERBOARD_PAGE));
+  if (cursor) queries.push(Query.cursorAfter(cursor));
+  return queries;
+}
+
+/**
+ * Returns one best run per typist. Paging happens before deduplication — collapsing
+ * a single fetched page would shrink the board to however many distinct users
+ * happened to appear in it.
+ */
+export async function listLeaderboard(filters: LeaderboardFilters = {}): Promise<CloudRun[]> {
+  if (!databases) return [];
+
+  const ranked: CloudRun[] = [];
+  const seenUsers = new Set<string>();
+  let cursor: string | undefined;
+  let indexed = true;
+
+  const collect = (documents: CloudRun[]) => {
+    for (const run of documents) {
+      if (ranked.length >= LEADERBOARD_SIZE) return;
+      if (seenUsers.has(run.userId)) continue;
+      if (!matchesFilters(run, filters) || !isRankableCloudRun(run)) continue;
+      seenUsers.add(run.userId);
+      ranked.push(run);
+    }
+  };
+
+  for (let page = 0; page < LEADERBOARD_MAX_PAGES && ranked.length < LEADERBOARD_SIZE; page += 1) {
+    let documents: CloudRun[];
+    try {
+      const response = await databases.listDocuments<CloudRun>({
+        databaseId: appwriteConfig.databaseId,
+        collectionId: appwriteConfig.runsCollectionId,
+        queries: indexed ? buildQueries(filters, cursor) : [Query.orderDesc("wpm"), Query.limit(LEADERBOARD_PAGE), ...(cursor ? [Query.cursorAfter(cursor)] : [])],
+      });
+      documents = response.documents;
+    } catch (error) {
+      if (!indexed || !(error instanceof AppwriteException) || error.code !== 400) throw error;
+      indexed = false;
+      cursor = undefined;
+      try {
+        const fallbackResponse = await databases.listDocuments<CloudRun>({
+          databaseId: appwriteConfig.databaseId,
+          collectionId: appwriteConfig.runsCollectionId,
+          queries: [Query.orderDesc("wpm"), Query.limit(LEADERBOARD_PAGE)],
+        });
+        documents = fallbackResponse.documents;
+      } catch {
+        break;
+      }
+    }
+
+    collect(documents);
+    if (documents.length < LEADERBOARD_PAGE) break;
+    cursor = documents[documents.length - 1].$id;
+  }
+
+  return ranked;
 }
 
 export async function listProfiles(userIds: string[]): Promise<Map<string, CloudProfile>> {

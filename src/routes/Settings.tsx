@@ -224,6 +224,28 @@ export default function Settings() {
 
             <section className="space-y-3 rounded-xl border bg-card p-4">
               <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 text-sm">👻</span>
+                  <div>
+                    <p className="text-sm font-semibold">Ghost Runner (PB Race)</p>
+                    <p className="text-[10px] text-muted-foreground">Show ghost caret & real-time WPM pace relative to your PB.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={preferences.ghostRunner}
+                  onClick={() => setPreference("ghostRunner", !preferences.ghostRunner)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors ${preferences.ghostRunner ? "bg-foreground" : "bg-muted"}`}
+                >
+                  <span className={`absolute top-1 size-5 rounded-full bg-background shadow-sm transition-transform ${preferences.ghostRunner ? "translate-x-5" : "translate-x-1"}`} />
+                  <span className="sr-only">Toggle ghost runner</span>
+                </button>
+              </div>
+            </section>
+
+            <section className="space-y-3 rounded-xl border bg-card p-4">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3">{preferences.keyboardSound ? <Volume2 className="mt-0.5 size-4" /> : <VolumeX className="mt-0.5 size-4 text-muted-foreground" />}<div><p className="text-sm font-semibold">Mechanical sound</p><p className="text-[10px] text-muted-foreground">Each key has a slightly different pitch.</p></div></div>
                 <button type="button" role="switch" aria-checked={preferences.keyboardSound} onClick={() => setPreference("keyboardSound", !preferences.keyboardSound)} className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors ${preferences.keyboardSound ? "bg-foreground" : "bg-muted"}`}><span className={`absolute top-1 size-5 rounded-full bg-background shadow-sm transition-transform ${preferences.keyboardSound ? "translate-x-5" : "translate-x-1"}`} /><span className="sr-only">Toggle keyboard sound</span></button>
               </div>

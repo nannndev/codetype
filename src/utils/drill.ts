@@ -117,6 +117,25 @@ export function buildDrillSnippet(targets: string[], lineCount = DEFAULT_LINES):
   };
 }
 
+export const DRILL_PRESETS = [
+  { id: "brackets", name: "Brackets & Scope", icon: "{ }", chars: ["{", "}", "(", ")", "[", "]", "<", ">"] },
+  { id: "operators", name: "Operators & Math", icon: "+ =", chars: ["=", "+", "-", "*", "/", "%", "&", "|", "!", "?", ":"] },
+  { id: "punctuation", name: "Punctuation & Quotes", icon: "; \"", chars: [";", ":", ",", ".", "'", '"', "`"] },
+  { id: "numbers", name: "Digits & Numbers", icon: "1 2", chars: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] },
+] as const;
+
+export function buildPresetDrill(presetId: string): Snippet | null {
+  const preset = DRILL_PRESETS.find((p) => p.id === presetId);
+  if (!preset) return null;
+  const snippet = buildDrillSnippet([...preset.chars], DEFAULT_LINES);
+  if (!snippet) return null;
+  return {
+    ...snippet,
+    id: `drill-preset-${preset.id}`,
+    filename: `drill-${preset.id}.txt`,
+  };
+}
+
 function labelChar(char: string): string {
   const names: Record<string, string> = {
     " ": "space", "/": "slash", "\\": "backslash", ".": "dot", ":": "colon", ";": "semi",

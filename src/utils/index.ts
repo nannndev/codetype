@@ -20,6 +20,7 @@ export {
   toLocalDateKey,
   getPersonalBests,
   getPersonalBest,
+  getBestRunForGhost,
 } from './storage';
 export { analyseWeakKeys, describeChar } from './weak-keys';
 export type { WeakKey, WeakKeyReport, ConfusionPair } from './weak-keys';

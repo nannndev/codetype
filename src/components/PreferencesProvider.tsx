@@ -34,6 +34,7 @@ export interface Preferences {
   keyboardSoundTuning: KeyboardSoundTuning;
   restartShortcut: AppShortcut;
   focusShortcut: AppShortcut;
+  ghostRunner: boolean;
 }
 
 export const DEFAULT_SOUND_TUNING: KeyboardSoundTuning = {
@@ -66,6 +67,7 @@ const DEFAULTS: Preferences = {
   keyboardSoundTuning: DEFAULT_SOUND_TUNING,
   restartShortcut: "mod+r",
   focusShortcut: "mod+shift+f",
+  ghostRunner: true,
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {

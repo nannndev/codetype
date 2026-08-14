@@ -34,6 +34,7 @@ Indexes:
 | `language` | string (64) | yes |
 | `mode` | enum: `snippet`, `timed`, `zen` | yes |
 | `snippetLength` | string (10): `short`, `medium`, `long` | no |
+| `targetChars` | integer | no |
 | `durationMs` | integer | yes |
 | `durationSeconds` | integer | no |
 | `wpm` | float | yes |
@@ -56,10 +57,16 @@ Permissions:
 Indexes:
 
 - `userId`, `$createdAt` descending
-- `mode`, `snippetLength`, `wpm` descending
-- `mode`, `durationSeconds`, `wpm` descending
-- `language`, `mode`, `snippetLength`, `wpm` descending
-- `language`, `mode`, `durationSeconds`, `wpm` descending
+- `language`, `mode`, `snippetLength`, `accuracy`, `wpm` descending
+- `language`, `mode`, `durationSeconds`, `accuracy`, `wpm` descending
+
+Every leaderboard is scoped to one language, so the two composite indexes above
+cover all boards. `accuracy` is part of each index because ranked runs are
+filtered by the accuracy floor before ordering by `wpm`.
+
+`targetChars` records how long a snippet run actually was. The client only ranks
+a run when that length falls inside the bounds its `snippetLength` category
+guarantees, which keeps a "medium" score comparable to another "medium" score.
 
 ## `run_sessions`
 

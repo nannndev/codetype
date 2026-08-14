@@ -22,6 +22,7 @@ interface UseGameReturn {
   mistakes: number;
   errorHistory: ErrorDetail[];
   completedCorrectChars: number;
+  progressSnapshots: Array<{ ms: number; charIndex: number }>;
   loadSnippet: (snippet: Snippet) => void;
 }
 
@@ -31,6 +32,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
   const [status, setStatus] = useState<GameStatus>('idle');
   const [elapsedMs, setElapsedMs] = useState(0);
   const [wpmSnapshots, setWpmSnapshots] = useState<number[]>([]);
+  const [progressSnapshots, setProgressSnapshots] = useState<Array<{ ms: number; charIndex: number }>>([]);
   const [snippetsCompleted, setSnippetsCompleted] = useState(0);
   const [secondsRemaining, setSecondsRemaining] = useState(config.duration ?? 0);
   const [keystrokes, setKeystrokes] = useState(0);
@@ -148,6 +150,14 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
           const newCorrect = [...next].filter((c, i) => c === snippet.code[i]).length;
           correctCharsRef.current = completedCorrectCharsRef.current + newCorrect;
 
+          if (startRef.current !== null) {
+            const currentMs = Math.round(performance.now() - startRef.current);
+            setProgressSnapshots((prevSnaps) => [
+              ...prevSnaps,
+              { ms: currentMs, charIndex: next.length },
+            ]);
+          }
+
           if (next.length >= snippet.code.length) {
             if (config.mode === 'snippet') {
               finish();
@@ -177,6 +187,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     setStatus('idle');
     setElapsedMs(0);
     setWpmSnapshots([]);
+    setProgressSnapshots([]);
     setSnippetsCompleted(0);
     setSecondsRemaining(config.duration ?? 0);
     setKeystrokes(0);
@@ -202,6 +213,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     setStatus('idle');
     setElapsedMs(0);
     setWpmSnapshots([]);
+    setProgressSnapshots([]);
     setSnippetsCompleted(0);
     setKeystrokes(0);
     setMistakes(0);
@@ -219,6 +231,7 @@ export function useGame({ config, getSnippet }: UseGameOptions): UseGameReturn {
     status,
     elapsedMs,
     wpmSnapshots,
+    progressSnapshots,
     handleKey,
     reset,
     stop: finish,

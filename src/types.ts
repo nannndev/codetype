@@ -64,7 +64,16 @@ export interface RunResult {
   targetChars?: number;
   sourceType?: 'public' | 'custom';
   wpmSnapshots?: number[];
+  progressSnapshots?: Array<{ ms: number; charIndex: number }>;
   snippetLength?: SnippetLength;
+}
+
+export interface GhostRunnerState {
+  hasPb: boolean;
+  targetWpm: number;
+  ghostCharIndex: number;
+  deltaWpm: number;
+  deltaChars: number;
 }
 
 export interface PersonalBest {

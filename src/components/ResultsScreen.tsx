@@ -7,16 +7,18 @@ import { RefreshCw, ArrowRight, Trophy, ImageDown } from "lucide-react";
 import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
+import { rankRejectionReason, describeRankRejection } from "@/utils/ranking";
 
 interface ResultsScreenProps {
   result: RunResult;
   previousBest: PersonalBest | null;
+  verifiedResult?: { verified: boolean; wpm: number; accuracy: number } | null;
   onRetry: () => void;
   onNext: () => void;
   onDrill: (snippet: Snippet) => void;
 }
 
-export function ResultsScreen({ result, previousBest, onRetry, onNext, onDrill }: ResultsScreenProps) {
+export function ResultsScreen({ result, previousBest, verifiedResult, onRetry, onNext, onDrill }: ResultsScreenProps) {
   const { user } = useAuth();
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const modeLabel =
@@ -30,6 +32,7 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext, onDrill }
   const isNewAccuracyRecord = previousBest ? result.accuracy > previousBest.bestAccuracy : true;
   const hasAnyRecord = isNewWpmRecord || isNewAccuracyRecord;
   const isCustom = result.sourceType === "custom";
+  const rejection = rankRejectionReason(result);
 
   return (
     <div className="mt-8 flex animate-fade-in-up flex-col gap-5">
@@ -72,6 +75,14 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext, onDrill }
         </div>
       </div>
 
+      {verifiedResult?.verified && (
+        <div className="flex justify-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3.5 py-1 text-xs font-bold text-amber-500">
+            <span>⚡ Ranked Score</span>
+          </span>
+        </div>
+      )}
+
       {!isCustom && hasAnyRecord && (
         <div className="flex justify-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
@@ -81,7 +92,11 @@ export function ResultsScreen({ result, previousBest, onRetry, onNext, onDrill }
         </div>
       )}
 
-      {isCustom && <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">Local practice result · not added to history, streak, cloud sync, personal best, or leaderboard.</div>}
+      {isCustom
+        ? <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">Local practice result · not added to history, streak, cloud sync, personal best, or leaderboard.</div>
+        : verifiedResult?.verified
+          ? <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">🛡️ Verified by server anti-cheat — Placed on the Ranked Leaderboard!</div>
+          : rejection && <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">Saved to your history, but not ranked. {describeRankRejection(rejection)}</div>}
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-4 gap-2">

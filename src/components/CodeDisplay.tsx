@@ -18,6 +18,8 @@ interface CodeDisplayProps {
   focusStats?: { wpm: number; accuracy: number; time: string };
   onRestart?: () => void;
   isRunning?: boolean;
+  ghostCharIndex?: number | null;
+  ghostWpm?: number | null;
 }
 
 type CursorPref = "block" | "underline" | "line";
@@ -53,7 +55,21 @@ const CURSOR_COMPONENTS: Record<CursorPref, React.FC<{ char: string; syntax: Syn
   line: LineCursor,
 };
 
-export function CodeDisplay({ chars, filename, language, source, input, onClick, focusMode = false, onFocusModeChange, focusStats, onRestart, isRunning = false }: CodeDisplayProps) {
+export function CodeDisplay({
+  chars,
+  filename,
+  language,
+  source,
+  input,
+  onClick,
+  focusMode = false,
+  onFocusModeChange,
+  focusStats,
+  onRestart,
+  isRunning = false,
+  ghostCharIndex = null,
+  ghostWpm = null,
+}: CodeDisplayProps) {
   const { preferences, setPreference } = usePreferences();
   const cursorStyle = preferences.cursorStyle as CursorPref;
   const CursorComponent = CURSOR_COMPONENTS[cursorStyle];
@@ -74,10 +90,10 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick,
   };
 
   const lines = useMemo(() => {
-    const result: Array<Array<{ state: CharState; syntax: SyntaxToken }>> = [];
-    let current: Array<{ state: CharState; syntax: SyntaxToken }> = [];
+    const result: Array<Array<{ state: CharState; syntax: SyntaxToken; globalIndex: number }>> = [];
+    let current: Array<{ state: CharState; syntax: SyntaxToken; globalIndex: number }> = [];
     chars.forEach((state, index) => {
-      current.push({ state, syntax: syntaxTokens[index] });
+      current.push({ state, syntax: syntaxTokens[index], globalIndex: index });
       if (state.char === "\n") {
         result.push(current);
         current = [];
@@ -147,6 +163,9 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick,
     onRestart?.();
   };
 
+  const showGhost = preferences.ghostRunner && ghostCharIndex !== null && ghostCharIndex >= 0 && (ghostWpm ?? 0) > 0;
+  const effectiveGhostIndex = showGhost ? Math.min(chars.length - 1, ghostCharIndex) : -1;
+
   return (
     <div
       className={cn("code-window overflow-hidden rounded-2xl border shadow-xl focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background transition-all duration-200", focusMode && "code-window-focus")}
@@ -180,24 +199,51 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick,
             <div key={li} className={cn("code-row", li === currentLineIndex && "is-current-line")}>
               <span className={cn("code-line-number", li === currentLineIndex && "is-current")}>{li + 1}</span>
               <div className="whitespace-pre px-4">
-                {line.map(({ state: c, syntax }, ci) =>
-                  c.isCurrent ? (
-                    <span ref={cursorRef} className="inline-block"><CursorComponent key={`${li}-${ci}`} char={c.char} syntax={syntax} /></span>
-                  ) : (
+                {line.map(({ state: c, syntax, globalIndex }, ci) => {
+                  const isGhostHere = showGhost && globalIndex === effectiveGhostIndex;
+
+                  if (c.isCurrent) {
+                    return (
+                      <span ref={cursorRef} key={`${li}-${ci}`} className="inline-block relative">
+                        {isGhostHere && (
+                          <span
+                            className="absolute -top-3.5 left-0 z-20 flex items-center gap-0.5 rounded-xs bg-purple-950/80 dark:bg-purple-900/80 border border-purple-500/40 px-1 py-0 text-[8px] font-medium text-purple-300 pointer-events-none backdrop-blur-xs select-none"
+                            title={`Ghost PB Pace: ${ghostWpm ? `${ghostWpm.toFixed(0)} WPM` : ''}`}
+                          >
+                            <span>👻</span>
+                            <span>PB</span>
+                          </span>
+                        )}
+                        <CursorComponent char={c.char} syntax={syntax} />
+                      </span>
+                    );
+                  }
+
+                  return (
                     <span
                       key={`${li}-${ci}`}
                       className={cn(
-                        "syntax-char transition-all duration-100",
+                        "syntax-char transition-all duration-100 relative",
                         `syntax-${syntax}`,
                         c.status === "correct" && "is-typed",
                         c.status === "incorrect" && "is-error",
                         c.status === "pending" && "is-pending",
+                        isGhostHere && "bg-purple-500/15 border-b-2 border-purple-400/60 text-purple-300 dark:text-purple-200 rounded-xs",
                       )}
                     >
+                      {isGhostHere && (
+                        <span
+                          className="absolute -top-3.5 left-0 z-20 flex items-center gap-0.5 rounded-xs bg-purple-950/80 dark:bg-purple-900/80 border border-purple-500/40 px-1 py-0 text-[8px] font-medium text-purple-300 pointer-events-none backdrop-blur-xs select-none"
+                          title={`Ghost PB Pace: ${ghostWpm ? `${ghostWpm.toFixed(0)} WPM` : ''}`}
+                        >
+                          <span>👻</span>
+                          <span>PB</span>
+                        </span>
+                      )}
                       {c.char}
                     </span>
-                  ),
-                )}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -222,6 +268,11 @@ export function CodeDisplay({ chars, filename, language, source, input, onClick,
           <span className="flex items-center gap-1.5"><Code2 aria-hidden="true" className="size-3" /> Built-in snippet</span>
         )}
         <div className="flex shrink-0 items-center gap-3">
+          {showGhost && (
+            <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-600 dark:text-purple-400 font-medium">
+              👻 Ghost PB {ghostWpm ? `(${ghostWpm.toFixed(0)} WPM)` : ''}
+            </span>
+          )}
           {focusMode && <span className="hidden sm:inline">Esc to exit focus</span>}
           <span>Ln {currentLineIndex + 1}, Col {cursorCol}</span>
           <span className="h-3 w-px bg-border" />
