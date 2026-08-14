@@ -1,5 +1,6 @@
 - Values light/dark theme support in web applications. Confidence: 0.7
 - Prioritizes intuitive, polished UI/UX over raw functionality. Confidence: 0.7
+- Prefers UI layouts that feel compact and elegant, with clear/strong positioning of elements rather than scattered or overly roomy arrangements. Confidence: 0.7
 - Dislikes flat/plain visual design; explicitly wants visual depth, framing, and rich aesthetics in workspace/editor UI — calls out "polos" (bare) and "flat" looks as undesirable. Confidence: 0.7
 - Prefers dynamic, varied content sourced from external/real-world data (e.g., GitHub public repos) over static, bundled content that repeats — dislikes seeing the same content cycle. Confidence: 0.6
 - Communicates in casual, informal shorthand (e.g., "oke", "beter"), mixing Indonesian and English. Confidence: 0.6

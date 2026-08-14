@@ -9,6 +9,10 @@ import { getStreak } from "@/utils/storage";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
 import type { RunResult } from "@/types";
+import { KeyboardHeatmap } from "@/components/KeyboardHeatmap";
+import { WpmAnalyticsChart } from "@/components/WpmAnalyticsChart";
+import { computeKeyStatsFromCloudRuns, getStoredKeyStats } from "@/utils/keyboard-analytics";
+import { DivisionBadge } from "@/components/DivisionBadge";
 
 function cloudRunAsResult(run: CloudRun): RunResult {
   return {
@@ -72,6 +76,10 @@ export default function Profile() {
     runs.forEach((run) => counts.set(run.language, (counts.get(run.language) ?? 0) + 1));
     return Array.from(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
   }, [runs]);
+  const userKeyStats = useMemo(() => {
+    const localStats = getStoredKeyStats(viewedUserId);
+    return computeKeyStatsFromCloudRuns(runs, localStats);
+  }, [viewedUserId, runs]);
   const bestRun = useMemo(() => [...runs].sort((a, b) => b.wpm - a.wpm)[0], [runs]);
 
   const syncLabel = syncStatus === "syncing" ? "Syncing local history" : syncStatus === "error" ? "Sync needs retry" : "Cloud history synced";
@@ -148,6 +156,8 @@ export default function Profile() {
               </div>
             </section>
 
+            <DivisionBadge bestWpm={bestWpm} avgAccuracy={avgAccuracy} size="lg" showProgress />
+
             <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
                 ["Best WPM", bestWpm.toFixed(1), Gauge],
@@ -162,6 +172,9 @@ export default function Profile() {
                 </div>
               ))}
             </section>
+
+            <WpmAnalyticsChart runs={runs} />
+            <KeyboardHeatmap statsMap={userKeyStats} />
 
             <div className="grid gap-4 md:grid-cols-[1fr_1.7fr]">
               <section className="rounded-xl border bg-card/80 p-5">

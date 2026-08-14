@@ -28,6 +28,7 @@ import {
   getPersonalBest,
 } from "@/utils";
 import { isRankEligible } from "@/utils/ranking";
+import { recordRunKeypressStats } from "@/utils/keyboard-analytics";
 import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 import { RankedAuthModal } from "@/components/RankedAuthModal";
@@ -152,6 +153,7 @@ export default function App() {
       if (!isCustom) try {
         saveResult(r);
         updateStreak();
+        recordRunKeypressStats({ userId: userIdRef.current, input, code: snippet.code, errorPositions: errorHistory });
         setGoalRefreshKey((key) => key + 1);
         if (!isRanked && userIdRef.current && isRankEligible(r)) {
           void uploadRun(userIdRef.current, r)
