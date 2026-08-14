@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { usePeerDuel } from "@/hooks/usePeerDuel";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,17 @@ import {
   Zap,
   CheckCircle2,
   XCircle,
+  FileCode2,
+  Wifi,
+  Radio,
 } from "lucide-react";
 import { getLanguages, getRandomSnippet } from "@/data";
 import { computeWpm } from "@/utils/scoring";
 import { useKeyboardSound } from "@/hooks/useKeyboardSound";
 import { usePreferences } from "@/components/PreferencesProvider";
 import { getDuelHistory, saveDuelRecord, getDuelStats, type DuelRecord } from "@/utils/duel-history";
+import { tokenizeCode } from "@/utils/syntax";
+import { cn } from "@/lib/utils";
 
 interface DuelModalProps {
   isOpen: boolean;
@@ -74,7 +79,8 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
   const [myFinished, setMyFinished] = useState(false);
   const [myFinishTimeMs, setMyFinishTimeMs] = useState<number | null>(null);
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
   const languages = getLanguages();
 
   // Load history when modal opens
@@ -124,7 +130,7 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
   }, [myFinished, opponent.completed, isIWinner, myWpm, opponent.wpm, myAcc, opponent.accuracy, snippet.language, opponent.name]);
 
   // Handle typing input
-  function handleTypingChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleTypingChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     if (duelState !== "racing" || myFinished) return;
 
     const val = e.target.value;
@@ -167,32 +173,51 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (!isOpen) return null;
-
   const targetCode = snippet.code;
   const myProgressPercent = Math.min(100, Math.round((typedText.length / targetCode.length) * 100));
   const oppProgressPercent = Math.min(100, Math.round((opponent.cursorIndex / targetCode.length) * 100));
+  const syntaxTokens = useMemo(() => tokenizeCode(targetCode), [targetCode]);
+  const duelLines = useMemo(() => {
+    const lines: Array<Array<{ char: string; index: number }>> = [];
+    let current: Array<{ char: string; index: number }> = [];
+    [...targetCode].forEach((char, index) => {
+      current.push({ char, index });
+      if (char === "\n") {
+        lines.push(current);
+        current = [];
+      }
+    });
+    if (current.length > 0) lines.push(current);
+    return lines;
+  }, [targetCode]);
+
+  useEffect(() => {
+    if (duelState !== "racing") return;
+    cursorRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+  }, [typedText.length, duelState]);
+
+  if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-lg animate-fade-in"
+      className="fixed inset-0 z-50 grid place-items-center bg-black/88 p-2 backdrop-blur-lg animate-fade-in sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="1v1 Live Real-time Code Race"
     >
-      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl border border-amber-500/30 bg-card p-6 shadow-2xl space-y-6 animate-scale-in">
+      <div className="code-window w-full max-w-6xl max-h-[96vh] overflow-y-auto rounded-2xl border shadow-2xl animate-scale-in">
         {/* Header Navigation */}
-        <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="code-chrome sticky top-0 z-30 flex flex-col gap-3 border-b px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-amber-500 text-zinc-950 font-black text-xl shadow-lg">
-              🤼
+            <div className="editor-window-actions flex shrink-0 gap-1.5">
+              <button type="button" onClick={() => { leaveDuel(); onClose(); }} className="editor-window-dot bg-red-400/80" aria-label="Close duel"><span>×</span></button>
+              <span className="editor-window-dot bg-yellow-400/80" />
+              <span className="editor-window-dot bg-green-400/80" />
             </div>
+            <FileCode2 className="size-3.5 text-muted-foreground" />
             <div>
-              <h3 className="font-bold text-lg tracking-tight text-foreground flex items-center gap-2">
-                1v1 REAL-TIME CODE RACE
-                <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-extrabold text-amber-400 border border-amber-500/30">P2P WEBRTC</span>
-              </h3>
-              <p className="text-xs text-muted-foreground">Compete live against a friend with zero-latency peer-to-peer connection.</p>
+              <h3 className="font-mono text-xs font-bold tracking-tight text-foreground">duel://{roomCode || "new-session"}/{snippet.language.toLowerCase()}</h3>
+              <p className="font-mono text-[9px] text-muted-foreground">peer session · shared snippet · first commit wins</p>
             </div>
           </div>
 
@@ -214,18 +239,14 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                leaveDuel();
-                onClose();
-              }}
-              className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
+            <span className="hidden items-center gap-1.5 font-mono text-[9px] text-muted-foreground sm:flex"><Wifi className="size-3" /> {connectionStatus}</span>
+            <button type="button" onClick={() => { leaveDuel(); onClose(); }} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
               <X className="size-5" />
             </button>
           </div>
         </div>
+
+        <div className="p-4 sm:p-6">
 
         {/* ──── TAB 2: MATCH HISTORY & STATS ──── */}
         {activeTab === "history" && (
@@ -430,59 +451,71 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
 
             {/* ──── SCREEN 4: RACING & RESULTS ──── */}
             {(duelState === "racing" || myFinished || opponent.completed) && (
-              <div className="space-y-5">
-                {/* Live Progress Bars */}
-                <div className="space-y-3 rounded-2xl border bg-card/70 p-4">
-                  {/* My Progress */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-amber-400">🏎️ {playerName} (You)</span>
-                      <span className="font-mono tabular-nums">{myWpm.toFixed(1)} WPM · {myAcc}% ACC</span>
+              <div className="space-y-4">
+                <div className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+                  {[
+                    { label: `${playerName} / YOU`, wpm: myWpm, accuracy: myAcc, progress: myProgressPercent, tone: "amber" },
+                    { label: opponent.name, wpm: opponent.wpm, accuracy: opponent.accuracy, progress: oppProgressPercent, tone: "sky" },
+                  ].map((player) => (
+                    <div key={player.label} className="bg-card/95 px-4 py-3">
+                      <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px]">
+                        <span className={player.tone === "amber" ? "text-amber-400" : "text-sky-400"}><Radio className="mr-1 inline size-3" />{player.label}</span>
+                        <span className="tabular-nums text-muted-foreground"><b className="text-foreground">{player.wpm.toFixed(1)}</b> WPM · {player.accuracy}%</span>
+                      </div>
+                      <div className="h-1 overflow-hidden bg-muted"><div className={cn("h-full transition-[width] duration-150", player.tone === "amber" ? "bg-amber-400" : "bg-sky-400")} style={{ width: `${player.progress}%` }} /></div>
                     </div>
-                    <div className="h-3 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full transition-all duration-150" style={{ width: `${myProgressPercent}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Opponent Progress */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-sky-400">🏎️ {opponent.name}</span>
-                      <span className="font-mono tabular-nums">{opponent.wpm.toFixed(1)} WPM · {opponent.accuracy}% ACC</span>
-                    </div>
-                    <div className="h-3 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-sky-500 rounded-full transition-all duration-150" style={{ width: `${oppProgressPercent}%` }} />
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* Target Snippet Display */}
-                <div className="rounded-2xl border bg-background/60 p-4 font-mono text-sm leading-relaxed overflow-x-auto select-none">
-                  {targetCode.split("").map((char, index) => {
-                    let colorClass = "text-muted-foreground/40";
-                    if (index < typedText.length) {
-                      colorClass = typedText[index] === char ? "text-emerald-400 font-bold" : "text-red-500 bg-red-500/20 font-bold";
-                    }
-                    const isOpponentHere = index === opponent.cursorIndex;
-                    return (
-                      <span key={index} className={`relative ${colorClass}`}>
-                        {char}
-                        {isOpponentHere && <span className="absolute -top-3 left-0 text-[9px] text-sky-400 font-bold">▼</span>}
-                      </span>
-                    );
-                  })}
+                <div className="overflow-hidden rounded-xl border bg-background/70 shadow-xl" onClick={() => inputRef.current?.focus()}>
+                  <div className="code-chrome flex items-center justify-between border-b px-4 py-2 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-2"><FileCode2 className="size-3" /> duel-snippet.{snippet.language.toLowerCase()}</span>
+                    <span className="font-mono">{snippet.language} · {targetCode.length} chars</span>
+                  </div>
+                  <div className="max-h-[48vh] min-h-72 overflow-auto py-4" style={{ "--code-font-size": `${preferences.fontSize}px` } as React.CSSProperties}>
+                    <div className="min-w-max">
+                      {duelLines.map((line, lineIndex) => (
+                        <div key={lineIndex} className={cn("code-row", line.some(({ index }) => index === typedText.length) && "is-current-line")}>
+                          <span className={cn("code-line-number", line.some(({ index }) => index === typedText.length) && "is-current")}>{lineIndex + 1}</span>
+                          <div className="whitespace-pre px-4">
+                            {line.map(({ char, index }) => {
+                              const typed = index < typedText.length;
+                              const correct = typed && typedText[index] === char;
+                              const isMine = index === typedText.length;
+                              const isOpponent = index === opponent.cursorIndex;
+                              return (
+                                <span ref={isMine ? cursorRef : undefined} key={index} className={cn("syntax-char relative transition-colors duration-75", `syntax-${syntaxTokens[index] || "plain"}`, !typed && "is-pending", correct && "is-typed", typed && !correct && "is-error", isMine && "border-l-2 border-amber-400 pl-px")}>
+                                  {isOpponent ? <span className="absolute -top-4 left-0 z-10 rounded-sm border border-sky-400/40 bg-sky-950/90 px-1 font-mono text-[7px] font-bold text-sky-300">P2</span> : null}
+                                  {char}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="code-chrome flex items-center justify-between border-t px-4 py-2 font-mono text-[9px] text-muted-foreground">
+                    <span>{myFinished ? "RUN COMPLETE" : "INSERT · typing broadcasts live"}</span>
+                    <span>{typedText.length}/{targetCode.length} · {myProgressPercent}%</span>
+                  </div>
+                  <textarea
+                    ref={inputRef}
+                    value={typedText}
+                    disabled={myFinished}
+                    onChange={handleTypingChange}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === "Tab") {
+                        event.preventDefault();
+                        const nextValue = `${typedText}  `;
+                        handleTypingChange({ target: { value: nextValue } } as React.ChangeEvent<HTMLTextAreaElement>);
+                      }
+                    }}
+                    aria-label="Duel typing input"
+                    className="sr-only"
+                  />
                 </div>
-
-                {/* Typing Input */}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={typedText}
-                  disabled={myFinished}
-                  onChange={handleTypingChange}
-                  placeholder={myFinished ? "Race completed!" : "Type snippet code here..."}
-                  className="w-full rounded-2xl border-2 border-amber-500/60 bg-background px-4 py-3 font-mono text-base font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
 
                 {/* Result Winner Banner */}
                 {(myFinished || opponent.completed) && (
@@ -500,6 +533,7 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );
