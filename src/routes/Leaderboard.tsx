@@ -41,7 +41,7 @@ function cloudRunAsResult(run: CloudRun): RunResult {
 }
 
 // ──── DEMO MODE: set to false to use real data ────
-const DEMO_MODE = true;
+const DEMO_MODE = false;
 
 const DEMO_NAMES = ["TurboTyper", "CodeNinja42", "SyntaxQueen", "ByteMaster", "DevFlow", "PixelPioneer", "TypeRacer_Pro", "LoopLord", "AsyncAvenger", "HashHero", "VoidRunner", "StackSurfer", "NullPointer", "RegexWizard", "LambdaLion"];
 const DEMO_LANGUAGES = ["TypeScript", "Python", "Rust", "Go", "JavaScript", "C++", "Java", "Swift", "Kotlin", "Ruby"];

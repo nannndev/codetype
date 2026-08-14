@@ -162,8 +162,16 @@ export async function uploadRun(userId: string, run: RunResult): Promise<void> {
 }
 
 export async function syncLocalRuns(userId: string, runs: RunResult[]): Promise<void> {
-  // Backlogged local runs face the same bar as live ones, so signing in cannot smuggle in unranked scores.
-  for (const run of runs) if (isRankEligible(run)) await uploadRun(userId, run);
+  try {
+    // Backlogged local runs face the same bar as live ones, so signing in cannot smuggle in unranked scores.
+    for (const run of runs) if (isRankEligible(run)) await uploadRun(userId, run);
+  } catch (error) {
+    if (error instanceof AppwriteException && (error.code === 429 || error.message.toLowerCase().includes("rate limit"))) {
+      console.warn("Appwrite sync rate limit reached, will retry later gracefully.");
+      return;
+    }
+    console.error("Unable to sync local runs", error);
+  }
 }
 
 export async function getProfile(userId: string): Promise<CloudProfile | null> {

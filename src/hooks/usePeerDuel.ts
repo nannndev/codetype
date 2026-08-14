@@ -49,14 +49,14 @@ export function usePeerDuel(playerName: string = "Typist") {
         return;
       }
 
-      const id = customId || `codey-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const id = (customId || `CODEY-${Math.random().toString(36).substring(2, 8)}`).toUpperCase();
       const peer = new Peer(id, {
         debug: 1,
       });
 
       peer.on("open", (peerId) => {
-        setRoomCode(peerId);
-        resolve(peerId);
+        setRoomCode(peerId.toUpperCase());
+        resolve(peerId.toUpperCase());
       });
 
       peer.on("connection", (conn) => {
