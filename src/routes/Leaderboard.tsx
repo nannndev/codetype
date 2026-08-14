@@ -10,7 +10,7 @@ import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { RankMark } from "@/components/RankMark";
-import { MIN_RANKED_ACCURACY } from "@/utils/ranking";
+import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM } from "@/utils/ranking";
 
 type Board = "snippet" | "timed";
 
@@ -120,7 +120,7 @@ export default function Leaderboard() {
           </section>
 
         <div className="mb-4 flex items-end justify-between">
-          <div><h2 className="text-xl font-bold">{boardTitle}</h2><p className="text-xs text-muted-foreground">Ranked by highest WPM · {MIN_RANKED_ACCURACY}% accuracy minimum</p></div>
+          <div><h2 className="text-xl font-bold">{boardTitle}</h2><p className="text-xs text-muted-foreground">Ranked by highest WPM · {MIN_RANKED_ACCURACY}% accuracy minimum · {MIN_RANKED_WPM} WPM minimum</p></div>
           <Code2 className="size-5 text-muted-foreground" />
         </div>
 

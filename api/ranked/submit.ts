@@ -1,5 +1,5 @@
 import { Client, Databases, Account, Permission, Role } from 'appwrite';
-import { MIN_RANKED_ACCURACY } from '../../src/utils/ranking.js';
+import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM } from '../../src/utils/ranking.js';
 import type { SnippetLength, TestMode } from '../../src/types/index.js';
 
 interface ApiRequest {
@@ -148,6 +148,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Anti-Cheat Checks
   if (calculatedAccuracy < MIN_RANKED_ACCURACY) {
     res.status(400).json({ error: `Accuracy ${calculatedAccuracy}% is below the ${MIN_RANKED_ACCURACY}% minimum required for Ranked Mode.` });
+    return;
+  }
+
+  if (calculatedWpm < MIN_RANKED_WPM) {
+    res.status(400).json({ error: `WPM ${calculatedWpm} is below the ${MIN_RANKED_WPM} WPM minimum required for Ranked Mode.` });
     return;
   }
 

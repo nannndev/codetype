@@ -19,13 +19,16 @@ export const SNIPPET_LENGTH_SPEC: Record<SnippetLength, SnippetLengthSpec> = {
 
 /** A snippet finishes on input length, not correctness, so speed without accuracy is not a score. */
 export const MIN_RANKED_ACCURACY = 90;
+/** Minimum WPM threshold required to qualify for the Ranked Leaderboard. */
+export const MIN_RANKED_WPM = 20;
 
-export type RankRejection = 'custom' | 'zen' | 'accuracy' | 'length';
+export type RankRejection = 'custom' | 'zen' | 'accuracy' | 'wpm' | 'length';
 
 export function rankRejectionReason(run: RunResult): RankRejection | null {
   if (run.sourceType === 'custom') return 'custom';
   if (run.mode === 'zen') return 'zen';
   if (run.accuracy < MIN_RANKED_ACCURACY) return 'accuracy';
+  if (run.wpm < MIN_RANKED_WPM) return 'wpm';
   if (run.mode === 'snippet') {
     if (!run.snippetLength) return 'length';
     if (!isWithinLengthSpec(run.snippetLength, run.targetChars)) return 'length';
@@ -57,6 +60,8 @@ export function describeRankRejection(reason: RankRejection): string {
       return 'Zen runs have no fixed target to compare.';
     case 'accuracy':
       return `Leaderboard runs need at least ${MIN_RANKED_ACCURACY}% accuracy.`;
+    case 'wpm':
+      return `Leaderboard runs need at least ${MIN_RANKED_WPM} WPM.`;
     case 'length':
       return 'This snippet fell outside the length its category guarantees.';
   }

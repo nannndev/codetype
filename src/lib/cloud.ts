@@ -1,7 +1,7 @@
 import { AppwriteException, Permission, Query, Role, type Models } from "appwrite";
 import type { RunResult, Settings, SnippetLength, TestMode } from "@/types";
 import { account, appwriteConfig, databases } from "@/lib/appwrite";
-import { MIN_RANKED_ACCURACY, isRankEligible, isWithinLengthSpec } from "@/utils/ranking";
+import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM, isRankEligible, isWithinLengthSpec } from "@/utils/ranking";
 
 // Keep the pre-rename key to retain existing sync markers.
 const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v3";
@@ -246,6 +246,7 @@ function matchesFilters(run: CloudRun, filters: LeaderboardFilters): boolean {
 function isRankableCloudRun(run: CloudRun): boolean {
   if (run.mode === "zen") return false;
   if (run.accuracy < MIN_RANKED_ACCURACY) return false;
+  if (run.wpm < MIN_RANKED_WPM) return false;
   const runLength = run.snippetLength ?? "medium";
   if (run.mode === "snippet" && !isWithinLengthSpec(runLength, run.targetChars)) return false;
   return true;
