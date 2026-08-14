@@ -35,6 +35,14 @@ import { RankedAuthModal } from "@/components/RankedAuthModal";
 export default function App() {
   const { user } = useAuth();
   const ranked = useRankedGame();
+  const {
+    isRanked,
+    challenge: rankedChallenge,
+    rankedStatus,
+    verifiedResult,
+    error: rankedError,
+    submit: submitRanked,
+  } = ranked;
   const [showRankedAuthModal, setShowRankedAuthModal] = useState(false);
   const { preferences, setPreference } = usePreferences();
   const userIdRef = useRef<string | null>(user?.$id ?? null);
@@ -72,6 +80,7 @@ export default function App() {
   const playKeyboardSound = useKeyboardSound(preferences.keyboardSound, preferences.keyboardSoundProfile, preferences.keyboardSoundVolume, preferences.keyboardSoundTuning);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration, snippetLength: preferences.snippetLength });
+  const submittedRankedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     userIdRef.current = user?.$id ?? null;
@@ -144,17 +153,7 @@ export default function App() {
         saveResult(r);
         updateStreak();
         setGoalRefreshKey((key) => key + 1);
-        if (ranked.isRanked && user) {
-          void ranked.submit({
-            completedCode: snippet.code,
-            mistakes,
-            totalMs: Math.round(elapsedMs),
-            language: snippet.language,
-            mode: config.mode,
-            snippetLength: preferences.snippetLength,
-            durationSeconds: config.duration ?? undefined,
-          });
-        } else if (userIdRef.current && isRankEligible(r)) {
+        if (!isRanked && userIdRef.current && isRankEligible(r)) {
           void uploadRun(userIdRef.current, r)
             .then(() => setGoalRefreshKey((key) => key + 1))
             .catch((error) => console.error("Unable to save cloud run", error));
@@ -163,7 +162,33 @@ export default function App() {
         // localStorage may be unavailable
       }
     }
-  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars, ranked, user, preferences.snippetLength, config.duration]);
+  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars, isRanked, preferences.snippetLength, config.duration, progressSnapshots]);
+
+  useEffect(() => {
+    if (
+      status !== "finished"
+      || !result
+      || !user
+      || !isRanked
+      || !rankedChallenge
+      || submittedRankedSessionRef.current === rankedChallenge.sessionId
+    ) return;
+
+    submittedRankedSessionRef.current = rankedChallenge.sessionId;
+    void submitRanked({
+      completedCode: snippet.code,
+      mistakes,
+      totalMs: Math.round(elapsedMs),
+      language: snippet.language,
+      mode: config.mode,
+      snippetLength: preferences.snippetLength,
+      durationSeconds: config.duration ?? undefined,
+    });
+  }, [status, result, user, isRanked, rankedChallenge, submitRanked, snippet.code, snippet.language, mistakes, elapsedMs, config.mode, config.duration, preferences.snippetLength]);
+
+  useEffect(() => {
+    if (!rankedChallenge) submittedRankedSessionRef.current = null;
+  }, [rankedChallenge]);
 
   const handleRetry = useCallback(() => {
     setResult(null);
@@ -349,7 +374,16 @@ export default function App() {
         <Header />
 
         {result ? (
-          <ResultsScreen result={result} previousBest={previousBest} verifiedResult={ranked.verifiedResult} onRetry={handleRetry} onNext={handleNextSnippet} onDrill={handleCustomSnippet} />
+          <ResultsScreen
+            result={result}
+            previousBest={previousBest}
+            verifiedResult={verifiedResult}
+            rankedStatus={rankedStatus}
+            rankedError={rankedError}
+            onRetry={handleRetry}
+            onNext={handleNextSnippet}
+            onDrill={handleCustomSnippet}
+          />
         ) : (
           <main className="mt-8 flex flex-col gap-6 animate-scale-in">
             {/* Top Activity Type Switcher: Practice vs Ranked */}

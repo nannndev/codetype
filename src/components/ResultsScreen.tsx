@@ -8,17 +8,20 @@ import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
 import { rankRejectionReason, describeRankRejection } from "@/utils/ranking";
+import type { RankedStatus } from "@/hooks/useRankedGame";
 
 interface ResultsScreenProps {
   result: RunResult;
   previousBest: PersonalBest | null;
   verifiedResult?: { verified: boolean; wpm: number; accuracy: number } | null;
+  rankedStatus?: RankedStatus;
+  rankedError?: string | null;
   onRetry: () => void;
   onNext: () => void;
   onDrill: (snippet: Snippet) => void;
 }
 
-export function ResultsScreen({ result, previousBest, verifiedResult, onRetry, onNext, onDrill }: ResultsScreenProps) {
+export function ResultsScreen({ result, previousBest, verifiedResult, rankedStatus, rankedError, onRetry, onNext, onDrill }: ResultsScreenProps) {
   const { user } = useAuth();
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const modeLabel =
@@ -80,6 +83,18 @@ export function ResultsScreen({ result, previousBest, verifiedResult, onRetry, o
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3.5 py-1 text-xs font-bold text-amber-500">
             <span>⚡ Ranked Score</span>
           </span>
+        </div>
+      )}
+
+      {rankedStatus === "submitting" && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-center text-xs font-semibold text-amber-600 dark:text-amber-400">
+          Verifying Ranked run with the server...
+        </div>
+      )}
+
+      {rankedStatus === "rejected" && rankedError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-xs font-semibold text-red-600 dark:text-red-400">
+          Ranked run rejected: {rankedError}
         </div>
       )}
 
