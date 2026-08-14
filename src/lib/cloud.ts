@@ -5,6 +5,7 @@ import { MIN_RANKED_ACCURACY, MIN_RANKED_WPM, isRankEligible, isWithinLengthSpec
 
 // Keep the pre-rename key to retain existing sync markers.
 const SYNCED_RUNS_KEY = "codetype_appwrite_synced_runs_v3";
+const inFlightRunUploads = new Map<string, Promise<void>>();
 
 export interface CloudProfile extends Models.Document {
   githubUsername?: string;
@@ -104,10 +105,8 @@ function hasOptionalAttributes(data: Record<string, unknown>): boolean {
   return OPTIONAL_ATTRIBUTES.some((attribute) => data[attribute] !== undefined);
 }
 
-export async function uploadRun(userId: string, run: RunResult): Promise<void> {
+async function performRunUpload(userId: string, run: RunResult, key: string): Promise<void> {
   if (!databases) return;
-  const key = `${userId}:${runKey(run)}`;
-  if (getSyncedKeys().has(key)) return;
 
   const owner = Role.user(userId);
   const id = documentId(userId, run);
@@ -159,6 +158,21 @@ export async function uploadRun(userId: string, run: RunResult): Promise<void> {
   }
   // Leaving the key unmarked lets a later sync retry once the schema catches up.
   if (fullySynced) markSynced(key);
+}
+
+export function uploadRun(userId: string, run: RunResult): Promise<void> {
+  if (!databases) return Promise.resolve();
+  const key = `${userId}:${runKey(run)}`;
+  if (getSyncedKeys().has(key)) return Promise.resolve();
+
+  const existingUpload = inFlightRunUploads.get(key);
+  if (existingUpload) return existingUpload;
+
+  const upload = performRunUpload(userId, run, key).finally(() => {
+    inFlightRunUploads.delete(key);
+  });
+  inFlightRunUploads.set(key, upload);
+  return upload;
 }
 
 export async function syncLocalRuns(userId: string, runs: RunResult[]): Promise<void> {
