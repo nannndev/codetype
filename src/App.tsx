@@ -244,6 +244,18 @@ export default function App() {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable ||
+          target.closest('[role="dialog"]'))
+      ) {
+        return;
+      }
+
       const modifier = e.metaKey || e.ctrlKey;
       const shortcut = modifier
         ? `mod+${e.shiftKey ? "shift+" : ""}${e.key.toLowerCase()}`

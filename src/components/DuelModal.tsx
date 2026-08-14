@@ -326,6 +326,12 @@ export function DuelModal({ isOpen, onClose }: DuelModalProps) {
                       placeholder="e.g. CODE-892"
                       value={inputCode}
                       onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter" && inputCode.trim()) {
+                          void joinRoom(inputCode);
+                        }
+                      }}
                       className="flex-1 rounded-xl border bg-background px-3.5 text-center text-sm font-mono font-bold uppercase"
                     />
                     <Button
