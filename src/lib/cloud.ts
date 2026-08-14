@@ -70,6 +70,16 @@ function markSynced(key: string): void {
   }
 }
 
+function markSyncedMany(newKeys: Iterable<string>): void {
+  try {
+    const keys = getSyncedKeys();
+    for (const key of newKeys) keys.add(key);
+    localStorage.setItem(SYNCED_RUNS_KEY, JSON.stringify(Array.from(keys).slice(-1000)));
+  } catch {
+    // Sync markers are an optimization; cloud data remains the source of truth.
+  }
+}
+
 /** Attributes added after the first schema rollout; a project missing them must not break sync. */
 const OPTIONAL_ATTRIBUTES = ["snippetLength", "targetChars"] as const;
 
@@ -125,21 +135,7 @@ async function performRunUpload(userId: string, run: RunResult, key: string): Pr
       await databases.createDocument({ ...request, data });
     } catch (error) {
       if (error instanceof AppwriteException && error.code === 409) {
-        // Document already exists in Appwrite database. Mark synced so it never blocks local sync retries.
-        if (optional) {
-          try {
-            await databases.updateDocument({
-              databaseId: appwriteConfig.databaseId,
-              collectionId: appwriteConfig.runsCollectionId,
-              documentId: id,
-              data: Object.fromEntries(OPTIONAL_ATTRIBUTES
-                .filter((attribute) => data[attribute] !== undefined)
-                .map((attribute) => [attribute, data[attribute]])),
-            });
-          } catch {
-            // Permission or update failure on pre-existing doc should not block sync.
-          }
-        }
+        // Existing immutable runs need no update; profile data is joined separately.
         markSynced(key);
         return;
       }
@@ -178,8 +174,36 @@ export function uploadRun(userId: string, run: RunResult): Promise<void> {
 
 export async function syncLocalRuns(userId: string, runs: RunResult[]): Promise<void> {
   try {
-    // Backlogged local runs face the same bar as live ones, so signing in cannot smuggle in unranked scores.
-    for (const run of runs) if (isRankEligible(run)) await uploadRun(userId, run);
+    if (!databases) return;
+    const databaseClient = databases;
+    const eligibleRuns = runs.filter(isRankEligible);
+    const syncedKeys = getSyncedKeys();
+    const pendingRuns = eligibleRuns.filter((run) => !syncedKeys.has(`${userId}:${runKey(run)}`));
+    if (pendingRuns.length === 0) return;
+
+    const runsByDocumentId = new Map(pendingRuns.map((run) => [documentId(userId, run), run]));
+    const ids = Array.from(runsByDocumentId.keys());
+    const existingIds = new Set<string>();
+
+    // Resolve existing immutable runs in batches instead of probing each one with a conflicting create.
+    for (let index = 0; index < ids.length; index += 100) {
+      const chunk = ids.slice(index, index + 100);
+      const response = await databaseClient.listDocuments<CloudRun>({
+        databaseId: appwriteConfig.databaseId,
+        collectionId: appwriteConfig.runsCollectionId,
+        queries: [Query.equal("$id", chunk), Query.limit(chunk.length)],
+      });
+      for (const document of response.documents) existingIds.add(document.$id);
+    }
+
+    markSyncedMany(Array.from(existingIds, (id) => {
+      const run = runsByDocumentId.get(id)!;
+      return `${userId}:${runKey(run)}`;
+    }));
+
+    for (const [id, run] of runsByDocumentId) {
+      if (!existingIds.has(id)) await uploadRun(userId, run);
+    }
   } catch (error) {
     if (error instanceof AppwriteException && (error.code === 429 || error.message.toLowerCase().includes("rate limit"))) {
       console.warn("Appwrite sync rate limit reached, will retry later gracefully.");
