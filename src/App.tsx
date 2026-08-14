@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { CornerDownLeft, IndentIncrease, RotateCcw } from "lucide-react";
+import { Coffee, CornerDownLeft, IndentIncrease, LoaderCircle, RotateCcw, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CodeDisplay } from "@/components/CodeDisplay";
 import { StatsBar } from "@/components/StatsBar";
@@ -192,9 +192,28 @@ export default function App() {
 
   const handleRetry = useCallback(() => {
     setResult(null);
+
+    if (isRanked && user) {
+      void ranked.fetchChallenge({
+        language,
+        mode,
+        snippetLength: preferences.snippetLength,
+        durationSeconds: duration ?? 30,
+      }).then((ch) => {
+        loadSnippet({
+          id: ch.sessionId,
+          language: ch.language,
+          code: ch.snippetCode,
+          sourceType: "public",
+        });
+        focusWorkspace();
+      }).catch(() => undefined);
+      return;
+    }
+
     reset();
     focusWorkspace();
-  }, [reset, focusWorkspace]);
+  }, [isRanked, user, ranked, language, mode, preferences.snippetLength, duration, loadSnippet, reset, focusWorkspace]);
 
   const handleLanguageChange = useCallback(
     (lang: string) => {
@@ -363,6 +382,41 @@ export default function App() {
     focusWorkspace();
   }, [customSnippet, exitCustomPractice, reset, focusWorkspace]);
 
+  const rankedSwitchPending = rankedStatus === "requesting_challenge";
+  const rankedSwitchEngaged = isRanked || rankedSwitchPending;
+  const handleActivityModeToggle = useCallback(() => {
+    if (rankedStatus === "requesting_challenge") return;
+
+    if (status === "running" || status === "finished") {
+      setResult(null);
+      reset();
+    }
+
+    if (isRanked) {
+      ranked.exitRanked();
+      return;
+    }
+
+    if (!user) {
+      setShowRankedAuthModal(true);
+      return;
+    }
+
+    void ranked.fetchChallenge({
+      language,
+      mode,
+      snippetLength: preferences.snippetLength,
+      durationSeconds: duration ?? 30,
+    }).then((ch) => {
+      loadSnippet({
+        id: ch.sessionId,
+        language: ch.language,
+        code: ch.snippetCode,
+        sourceType: "public",
+      });
+    }).catch(() => undefined);
+  }, [status, rankedStatus, isRanked, ranked, user, language, mode, preferences.snippetLength, duration, loadSnippet, reset]);
+
   return (
     <div
       ref={containerRef}
@@ -386,59 +440,61 @@ export default function App() {
           />
         ) : (
           <main className="mt-8 flex flex-col gap-6 animate-scale-in">
-            {/* Top Activity Type Switcher: Practice vs Ranked */}
-            <div className="flex overflow-hidden rounded-2xl border bg-card/70 p-1.5 backdrop-blur-md shadow-lg">
-              <button
-                type="button"
-                disabled={status === "running"}
-                onClick={() => {
-                  if (ranked.isRanked) ranked.exitRanked();
-                }}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition-all duration-200 ${
-                  !ranked.isRanked
-                    ? "bg-foreground text-background shadow-lg scale-[1.01]"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <span>☕ Practice Mode</span>
-              </button>
+            {/* A hardware-style mode control gives the competitive switch immediate physical feedback. */}
+            <section className={`mode-console ${rankedSwitchEngaged ? "is-ranked" : "is-practice"}`} aria-label="Game mode">
+              <div className="mode-console__plate">
+                <button
+                  type="button"
+                  disabled={rankedSwitchPending}
+                  aria-pressed={!rankedSwitchEngaged}
+                  onClick={() => {
+                    if (isRanked) handleActivityModeToggle();
+                  }}
+                  className="mode-console__label mode-console__label--practice"
+                >
+                  <Coffee className="size-4" />
+                  <span><strong>Practice</strong><small>local run</small></span>
+                </button>
 
-              <button
-                type="button"
-                disabled={status === "running"}
-                onClick={() => {
-                  if (!user) {
-                    setShowRankedAuthModal(true);
-                    return;
-                  }
-                  if (!ranked.isRanked) {
-                    void ranked.fetchChallenge({
-                      language,
-                      mode,
-                      snippetLength: preferences.snippetLength,
-                      durationSeconds: duration ?? 30,
-                    }).then((ch) => {
-                      loadSnippet({
-                        id: ch.sessionId,
-                        language: ch.language,
-                        code: ch.snippetCode,
-                        sourceType: "public",
-                      });
-                    });
-                  }
-                }}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition-all duration-200 ${
-                  ranked.isRanked
-                    ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-zinc-950 shadow-[0_0_25px_rgba(245,158,11,0.5)] scale-[1.01]"
-                    : "text-amber-500 hover:bg-amber-500/10"
-                }`}
-              >
-                <span>⚡ Ranked Match</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-950/20 text-current">
-                  {ranked.isRanked ? "ACTIVE" : "RANKED"}
-                </span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="mode-console__rail"
+                  disabled={rankedSwitchPending}
+                  aria-label={isRanked ? "Switch to Practice mode" : "Switch to Ranked mode"}
+                  aria-pressed={rankedSwitchEngaged}
+                  onClick={handleActivityModeToggle}
+                >
+                  <span className="mode-console__tick">P</span>
+                  <span className="mode-console__tick">R</span>
+                  <span className="mode-console__switch">
+                    <span className="mode-console__switch-top">
+                      {rankedSwitchPending ? <LoaderCircle className="size-4 animate-spin" /> : rankedSwitchEngaged ? <Zap className="size-4" /> : <Coffee className="size-4" />}
+                    </span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={rankedSwitchPending}
+                  aria-pressed={rankedSwitchEngaged}
+                  onClick={() => {
+                    if (!isRanked) handleActivityModeToggle();
+                  }}
+                  className="mode-console__label mode-console__label--ranked"
+                >
+                  <Zap className="size-4" />
+                  <span><strong>{rankedSwitchPending ? "Syncing" : "Ranked"}</strong><small>{rankedSwitchPending ? "arming match" : "verified run"}</small></span>
+                  <i className="mode-console__led" />
+                </button>
+              </div>
+              <div className="mode-console__readout">
+                <span>MODE://{rankedSwitchPending ? "SYNCING" : rankedSwitchEngaged ? "RANKED" : "PRACTICE"}</span>
+                <span>{rankedSwitchPending ? "REQUESTING SERVER CHALLENGE" : status === "running" ? "SWITCHING RESETS CURRENT RUN" : "READY"}</span>
+              </div>
+              {rankedStatus === "rejected" && rankedError && (
+                <p className="px-2 pb-1 pt-2 text-center font-mono text-[10px] text-red-500">RANKED ERROR: {rankedError}</p>
+              )}
+            </section>
 
             {/* Ranked Competitive Banner */}
             {ranked.isRanked && (
@@ -453,7 +509,11 @@ export default function App() {
                         RANKED MATCH ACTIVE
                         <span className="size-2 rounded-full bg-amber-400 animate-ping" />
                       </h3>
-                      <p className="text-xs text-muted-foreground">Official competitive run · Submitted directly to the Leaderboard</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 font-bold text-amber-400">⚡ Min 20 WPM</span>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 font-bold text-amber-400">🎯 Min 90% Accuracy</span>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-background/50 border px-2 py-0.5 text-muted-foreground">🔐 Server Challenge</span>
+                      </div>
                     </div>
                   </div>
                   <Button type="button" variant="outline" size="sm" onClick={ranked.exitRanked} className="border-amber-500/40 text-amber-400 hover:bg-amber-500/20">

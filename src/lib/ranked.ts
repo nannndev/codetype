@@ -1,6 +1,15 @@
 import { account } from './appwrite';
 import type { SnippetLength, TestMode } from '../types';
 
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '');
+const needsRemoteServerlessApi = typeof window !== 'undefined'
+  && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:');
+const API_BASE_URL = configuredApiBase || (needsRemoteServerlessApi ? 'https://codey-opal.vercel.app' : '');
+
+function rankedApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 export interface RankedChallenge {
   sessionId: string;
   challengeHash: string;
@@ -34,6 +43,11 @@ export interface RankedResult {
   accuracy: number;
 }
 
+export interface RankedStart {
+  startedAt: string;
+  expiresAt: string;
+}
+
 async function getJwtToken(): Promise<string | null> {
   if (!account) return null;
   try {
@@ -62,7 +76,7 @@ export async function requestRankedChallenge(params: {
   const jwt = await getJwtToken();
   if (!jwt) throw new Error('You must be signed in with GitHub to play Ranked Mode.');
 
-  const response = await fetch('/api/ranked/challenge', {
+  const response = await fetch(rankedApiUrl('/api/ranked/challenge'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
     body: JSON.stringify(params),
@@ -71,11 +85,24 @@ export async function requestRankedChallenge(params: {
   return await response.json() as RankedChallenge;
 }
 
+export async function startRankedChallenge(sessionId: string): Promise<RankedStart> {
+  const jwt = await getJwtToken();
+  if (!jwt) throw new Error('Authentication lost before Ranked start.');
+
+  const response = await fetch(rankedApiUrl('/api/ranked/start'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+    body: JSON.stringify({ sessionId }),
+  });
+  if (!response.ok) throw await apiError(response, 'Ranked session could not be started.');
+  return await response.json() as RankedStart;
+}
+
 export async function submitRankedRun(payload: RankedSubmission): Promise<RankedResult> {
   const jwt = await getJwtToken();
   if (!jwt) throw new Error('Authentication lost during Ranked submission.');
 
-  const response = await fetch('/api/ranked/submit', {
+  const response = await fetch(rankedApiUrl('/api/ranked/submit'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
     body: JSON.stringify(payload),

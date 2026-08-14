@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { requestRankedChallenge, submitRankedRun, type RankedChallenge, type RankedResult } from "@/lib/ranked";
+import { requestRankedChallenge, startRankedChallenge, submitRankedRun, type RankedChallenge, type RankedResult } from "@/lib/ranked";
 import type { SnippetLength, TestMode } from "@/types";
 
 export type RankedStatus = "idle" | "requesting_challenge" | "ready" | "submitting" | "verified" | "rejected";
@@ -13,19 +13,31 @@ export function useRankedGame() {
 
   const keyTimesRef = useRef<number[]>([]);
   const lastKeyTimeRef = useRef<number | null>(null);
+  const startPromiseRef = useRef<Promise<unknown> | null>(null);
 
   const recordKeypress = useCallback(() => {
+    if (challenge && !startPromiseRef.current) {
+      const startPromise = startRankedChallenge(challenge.sessionId);
+      startPromiseRef.current = startPromise;
+      void startPromise.catch((err) => {
+        const message = err instanceof Error ? err.message : "Ranked session could not be started.";
+        setError(message);
+        setRankedStatus("rejected");
+      });
+    }
+
     const now = performance.now();
     if (lastKeyTimeRef.current !== null) {
       const interval = Math.max(1, Math.round(now - lastKeyTimeRef.current));
       keyTimesRef.current.push(interval);
     }
     lastKeyTimeRef.current = now;
-  }, []);
+  }, [challenge]);
 
   const resetKeypressData = useCallback(() => {
     keyTimesRef.current = [];
     lastKeyTimeRef.current = null;
+    startPromiseRef.current = null;
   }, []);
 
   const fetchChallenge = useCallback(async (params: {
@@ -71,6 +83,11 @@ export function useRankedGame() {
     setError(null);
 
     try {
+      if (!startPromiseRef.current) {
+        startPromiseRef.current = startRankedChallenge(challenge.sessionId);
+      }
+      await startPromiseRef.current;
+
       const result = await submitRankedRun({
         sessionId: challenge.sessionId,
         challengeHash: challenge.challengeHash,

@@ -103,7 +103,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const { code: snippetCode, targetChars } = selectSnippetCode(language, snippetLength);
   const sessionId = crypto.randomUUID().replace(/-/g, '').slice(0, 36);
   const startedAt = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min expiry
+  // The waiting-room deadline is replaced with a run deadline on first input.
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
   const challengeString = `${sessionId}:${userId}:${language}:${snippetCode}:${startedAt}`;
   const challengeHash = crypto.createHash('sha256').update(challengeString).digest('hex');
