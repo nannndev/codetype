@@ -178,15 +178,17 @@ export default function App() {
 
     submittedRankedSessionRef.current = rankedChallenge.sessionId;
     void submitRanked({
-      completedCode: snippet.code,
+      completedCode: input,
       mistakes,
+      keystrokes: result.charsTyped,
+      correctChars: result.totalCorrect,
       totalMs: Math.round(elapsedMs),
       language: snippet.language,
       mode: config.mode,
       snippetLength: preferences.snippetLength,
       durationSeconds: config.duration ?? undefined,
     });
-  }, [status, result, user, isRanked, rankedChallenge, submitRanked, snippet.code, snippet.language, mistakes, elapsedMs, config.mode, config.duration, preferences.snippetLength]);
+  }, [status, result, user, isRanked, rankedChallenge, submitRanked, input, snippet.language, mistakes, elapsedMs, config.mode, config.duration, preferences.snippetLength]);
 
   useEffect(() => {
     if (!rankedChallenge) submittedRankedSessionRef.current = null;

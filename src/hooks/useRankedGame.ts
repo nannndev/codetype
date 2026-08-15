@@ -68,6 +68,8 @@ export function useRankedGame() {
   const submit = useCallback(async (params: {
     completedCode: string;
     mistakes: number;
+    keystrokes: number;
+    correctChars: number;
     totalMs: number;
     language: string;
     mode: TestMode;
@@ -93,6 +95,8 @@ export function useRankedGame() {
         challengeHash: challenge.challengeHash,
         completedCode: params.completedCode,
         mistakes: params.mistakes,
+        keystrokes: params.keystrokes,
+        correctChars: params.correctChars,
         totalMs: params.totalMs,
         keyIntervals: keyTimesRef.current,
         language: params.language,

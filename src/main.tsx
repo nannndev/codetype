@@ -12,6 +12,7 @@ import Leaderboard from './routes/Leaderboard';
 import Profile from './routes/Profile';
 import Donate from './routes/Donate';
 import Contributors from './routes/Contributors';
+import Duel from './routes/Duel';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -29,6 +30,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:userId" element={<Profile />} />
+              <Route path="/duel" element={<Duel />} />
+              <Route path="/race" element={<Duel />} />
               <Route path="/donate" element={<Donate />} />
               <Route path="/support" element={<Donate />} />
               <Route path="/contributors" element={<Contributors />} />

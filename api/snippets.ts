@@ -39,25 +39,35 @@ const LANGUAGE_CONFIG: Record<string, {
   topic?: string;
   curated: Array<[string, string]>;
 }> = {
-  TypeScript: { githubLanguage: 'TypeScript', extensions: ['ts', 'tsx'], curated: [['TanStack', 'query'], ['shadcn-ui', 'ui'], ['vercel', 'next.js']] },
-  React: { githubLanguage: 'TypeScript', extensions: ['tsx', 'jsx'], topic: 'react', curated: [['TanStack', 'query'], ['facebook', 'react']] },
-  JavaScript: { githubLanguage: 'JavaScript', extensions: ['js', 'jsx'], curated: [['expressjs', 'express'], ['vercel', 'next.js']] },
-  Rust: { githubLanguage: 'Rust', extensions: ['rs'], curated: [['rust-lang', 'rust'], ['tokio-rs', 'tokio']] },
-  Python: { githubLanguage: 'Python', extensions: ['py'], curated: [['psf', 'requests'], ['pallets', 'flask']] },
-  Go: { githubLanguage: 'Go', extensions: ['go'], curated: [['gin-gonic', 'gin'], ['gofiber', 'fiber']] },
-  PHP: { githubLanguage: 'PHP', extensions: ['php'], curated: [['laravel', 'framework'], ['symfony', 'symfony']] },
+  TypeScript: { githubLanguage: 'TypeScript', extensions: ['ts', 'tsx'], curated: [['TanStack', 'query'], ['shadcn-ui', 'ui'], ['vercel', 'next.js'], ['vuejs', 'core'], ['tailwindlabs', 'tailwindcss']] },
+  React: { githubLanguage: 'TypeScript', extensions: ['tsx', 'jsx'], topic: 'react', curated: [['TanStack', 'query'], ['facebook', 'react'], ['mui', 'material-ui'], ['shadcn-ui', 'ui']] },
+  JavaScript: { githubLanguage: 'JavaScript', extensions: ['js', 'jsx'], curated: [['expressjs', 'express'], ['vercel', 'next.js'], ['axios', 'axios'], ['facebook', 'react']] },
+  Rust: { githubLanguage: 'Rust', extensions: ['rs'], curated: [['rust-lang', 'rust'], ['tokio-rs', 'tokio'], ['serde-rs', 'serde'], ['clap-rs', 'clap']] },
+  Python: { githubLanguage: 'Python', extensions: ['py'], curated: [['psf', 'requests'], ['pallets', 'flask'], ['encode', 'httpx'], ['fastapi', 'fastapi'], ['pydantic', 'pydantic']] },
+  Go: { githubLanguage: 'Go', extensions: ['go'], curated: [['gin-gonic', 'gin'], ['gofiber', 'fiber'], ['spf13', 'cobra'], ['go-chi', 'chi']] },
+  PHP: { githubLanguage: 'PHP', extensions: ['php'], curated: [['laravel', 'framework'], ['symfony', 'symfony'], ['guzzle', 'guzzle'], ['slimphp', 'Slim'], ['nette', 'utils']] },
   Dart: { githubLanguage: 'Dart', extensions: ['dart'], curated: [['dart-lang', 'sdk'], ['dart-lang', 'http']] },
   Flutter: { githubLanguage: 'Dart', extensions: ['dart'], topic: 'flutter', curated: [['flutter', 'flutter'], ['flutter', 'packages']] },
-  Kotlin: { githubLanguage: 'Kotlin', extensions: ['kt'], curated: [['square', 'okhttp']] },
-  Swift: { githubLanguage: 'Swift', extensions: ['swift'], curated: [['Alamofire', 'Alamofire']] },
-  C: { githubLanguage: 'C', extensions: ['c', 'h'], curated: [['torvalds', 'linux']] },
-  Zig: { githubLanguage: 'Zig', extensions: ['zig'], curated: [['ziglang', 'zig']] },
-  Elixir: { githubLanguage: 'Elixir', extensions: ['ex', 'exs'], curated: [['phoenixframework', 'phoenix']] },
-  Lua: { githubLanguage: 'Lua', extensions: ['lua'], curated: [['Kong', 'kong']] },
+  Kotlin: { githubLanguage: 'Kotlin', extensions: ['kt'], curated: [['square', 'okhttp'], ['square', 'retrofit'], ['Kotlin', 'kotlinx.coroutines'], ['ktorio', 'ktor']] },
+  Swift: { githubLanguage: 'Swift', extensions: ['swift'], curated: [['Alamofire', 'Alamofire'], ['apple', 'swift-algorithms'], ['apple', 'swift-collections'], ['vapor', 'vapor']] },
+  C: { githubLanguage: 'C', extensions: ['c', 'h'], curated: [['torvalds', 'linux'], ['redis', 'redis'], ['curl', 'curl']] },
+  Zig: { githubLanguage: 'Zig', extensions: ['zig'], curated: [['ziglang', 'zig'], ['oven-sh', 'bun']] },
+  Elixir: { githubLanguage: 'Elixir', extensions: ['ex', 'exs'], curated: [['phoenixframework', 'phoenix'], ['elixir-ecto', 'ecto'], ['elixir-lang', 'elixir']] },
+  Lua: { githubLanguage: 'Lua', extensions: ['lua'], curated: [['Kong', 'kong'], ['nvim-lua', 'plenary.nvim'], ['folke', 'lazy.nvim']] },
 };
 
 const EXCLUDED_PATHS = /(^|\/)(test|tests|fixtures|generated|vendor|dist|build|examples?|benchmarks?|migrations?|snapshots?)(\/|$)|\.min\.|\.generated\.|\.g\./i;
 const LINE_COMMENT = /^\s*(\/\/|#(?!\!)|--)(?:\s|$)/;
+
+/** Fisher-Yates. `sort(() => Math.random() - 0.5)` is biased and barely moves the head of the list. */
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -109,7 +119,7 @@ async function discoverRepos(language: string): Promise<RepoCandidate[]> {
     }
   }
 
-  return [...repos.values()].slice(0, 5);
+  return [...repos.values()];
 }
 
 function selectSnippet(code: string): string | null {
@@ -168,9 +178,9 @@ async function snippetsFromRepo(language: string, candidate: RepoCandidate): Pro
       && (item.size ?? 0) <= 20_000;
   });
 
-  // Rotate the candidate window so warm server instances do not always return the same files.
-  const start = files.length > 5 ? Math.floor(Math.random() * (files.length - 5)) : 0;
-  const candidates = files.slice(start, start + 4);
+  // Sample across the whole tree. A contiguous window returns neighbouring files
+  // from one directory, which read as "the same code" even when the offset moves.
+  const candidates = shuffle(files).slice(0, 5);
   const snippets = await Promise.all(candidates.map(async (file) => {
     try {
       const content = await githubJSON<{ content: string; encoding: string }>(
@@ -224,8 +234,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   try {
     const repositories = await discoverRepos(language);
-    const batches = await Promise.all(repositories.slice(0, 3).map((repo) => snippetsFromRepo(language, repo).catch(() => [])));
-    const snippets = batches.flat().slice(0, 12);
+    // Shuffle so the same three repos are not always the ones sampled, and keep a
+    // pool large enough that a 6-hour cache still feels varied to one player.
+    const batches = await Promise.all(
+      shuffle(repositories).slice(0, 4).map((repo) => snippetsFromRepo(language, repo).catch(() => [])),
+    );
+    const snippets = shuffle(batches.flat()).slice(0, 40);
     responseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, snippets });
     response.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=86400');
     response.status(200).json({

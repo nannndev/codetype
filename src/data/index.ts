@@ -1,1 +1,1 @@
-export { getLanguages, getRandomSnippet } from './snippets';
+export { getLanguages, getRandomSnippet, maxSnippetCharsForLanguage } from './snippets';

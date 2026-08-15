@@ -76,6 +76,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     challengeHash?: string;
     completedCode?: string;
     mistakes?: number;
+    keystrokes?: number;
+    correctChars?: number;
     totalMs?: number;
     keyIntervals?: number[];
     language?: string;
@@ -89,6 +91,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     challengeHash,
     completedCode = '',
     mistakes = 0,
+    keystrokes = completedCode.length,
+    correctChars = Math.max(0, completedCode.length - mistakes),
     totalMs = 1,
     keyIntervals = [],
     language = 'TypeScript',
@@ -139,13 +143,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Authoritative Metric Recalculation
   const charLength = completedCode.length;
-  const netChars = Math.max(0, charLength - mistakes);
-  const netWords = netChars / 5;
+  const totalKeystrokes = Math.max(charLength, Math.round(keystrokes));
+  const finalCorrectChars = Math.max(0, Math.min(charLength, Math.round(correctChars)));
+  const successfulAttempts = Math.max(0, totalKeystrokes - mistakes);
   const minutes = Math.max(0.001, totalMs / 60000);
 
-  const calculatedWpm = Number((netWords / minutes).toFixed(1));
-  const calculatedRawWpm = Number(((charLength / 5) / minutes).toFixed(1));
-  const calculatedAccuracy = Number(Math.max(0, Math.min(100, (netChars / charLength) * 100)).toFixed(1));
+  const calculatedWpm = Number(((finalCorrectChars / 5) / minutes).toFixed(1));
+  const calculatedRawWpm = Number(((totalKeystrokes / 5) / minutes).toFixed(1));
+  const calculatedAccuracy = Number(Math.max(0, Math.min(100, (successfulAttempts / totalKeystrokes) * 100)).toFixed(1));
 
   // Anti-Cheat Checks
   if (calculatedAccuracy < MIN_RANKED_ACCURACY) {
@@ -196,8 +201,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         rawWpm: calculatedRawWpm,
         accuracy: calculatedAccuracy,
         consistency: 92.5,
-        correctChars: netChars,
-        keystrokes: charLength + mistakes,
+        correctChars: finalCorrectChars,
+        keystrokes: totalKeystrokes,
         mistakes,
         snippetsCompleted: 1,
         verified: true,

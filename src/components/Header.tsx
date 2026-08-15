@@ -7,14 +7,12 @@ import { useAuth } from "./AuthProvider";
 import { HeatmapModal } from "./HeatmapModal";
 import { SoundPackModal } from "./SoundPackModal";
 import { ThemeStudioModal } from "./ThemeStudioModal";
-import { DuelModal } from "./DuelModal";
 
 export function Header() {
   const { user, loading, configured, login, logout } = useAuth();
   const [showHeatmapModal, setShowHeatmapModal] = useState(false);
   const [showSoundModal, setShowSoundModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [showDuelModal, setShowDuelModal] = useState(false);
 
   return (
     <header className="flex items-center justify-between border-b border-border/70 pb-5">
@@ -28,15 +26,14 @@ export function Header() {
         </Link>
       </div>
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setShowDuelModal(true)}
+        <Link
+          to="/duel"
           className="rounded-md p-2 hover:bg-muted transition-colors text-amber-500 hover:text-amber-400"
           aria-label="Open 1v1 Code Duel"
           title="1v1 Live Real-time Code Race"
         >
           <Swords className="size-[18px]" />
-        </button>
+        </Link>
         <button
           type="button"
           onClick={() => setShowThemeModal(true)}
@@ -129,7 +126,6 @@ export function Header() {
       <HeatmapModal isOpen={showHeatmapModal} onClose={() => setShowHeatmapModal(false)} />
       <SoundPackModal isOpen={showSoundModal} onClose={() => setShowSoundModal(false)} />
       <ThemeStudioModal isOpen={showThemeModal} onClose={() => setShowThemeModal(false)} />
-      <DuelModal isOpen={showDuelModal} onClose={() => setShowDuelModal(false)} />
     </header>
   );
 }

@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Peer, { DataConnection } from "peerjs";
 import { getRandomSnippet } from "@/data";
-import type { Snippet } from "@/types";
+import type { Snippet, SnippetLength, TestMode, TimedDuration } from "@/types";
 
 export type DuelState = "idle" | "lobby" | "countdown" | "racing" | "finished";
+
+export interface DuelConfig {
+  mode: TestMode;
+  snippetLength: SnippetLength;
+  durationSeconds: TimedDuration;
+  selectedLanguage: string;
+}
 
 export interface OpponentState {
   name: string;
@@ -14,22 +21,52 @@ export interface OpponentState {
   finishTimeMs?: number;
 }
 
-export interface DuelDataMessage {
-  type: "LOBBY_SYNC" | "READY" | "START_COUNTDOWN" | "PROGRESS" | "FINISHED" | "REMATCH";
-  payload?: any;
+interface DuelDataMessage {
+  type:
+    | "LOBBY_REQUEST"
+    | "LOBBY_SYNC"
+    | "READY"
+    | "START_COUNTDOWN"
+    | "PROGRESS"
+    | "FINISHED"
+    | "REMATCH"
+    | "REMATCH_REQUEST";
+  payload?: {
+    opponentName?: string;
+    snippet?: Snippet;
+    config?: DuelConfig;
+    isReady?: boolean;
+    cursorIndex?: number;
+    wpm?: number;
+    accuracy?: number;
+    completed?: boolean;
+    finishTimeMs?: number;
+  };
 }
 
-export function usePeerDuel(playerName: string = "Typist") {
+const DEFAULT_CONFIG: DuelConfig = {
+  mode: "snippet",
+  snippetLength: "medium",
+  durationSeconds: 30,
+  selectedLanguage: "All",
+};
+
+/** Timed runs always use a long snippet so neither player runs out of code before the clock stops. */
+export function snippetForConfig(config: DuelConfig): Snippet {
+  const language = config.selectedLanguage === "All" ? undefined : config.selectedLanguage;
+  return getRandomSnippet(language, config.mode === "timed" ? "long" : config.snippetLength);
+}
+
+export function usePeerDuel(playerName: string = "Typist", initialConfig: DuelConfig = DEFAULT_CONFIG) {
   const [duelState, setDuelState] = useState<DuelState>("idle");
   const [isHost, setIsHost] = useState(false);
-  const [roomCode, setRoomCode] = useState<string>("");
+  const [roomCode, setRoomCode] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
-  
   const [snippet, setSnippet] = useState<Snippet>(() => getRandomSnippet());
+  const [duelConfig, setDuelConfig] = useState<DuelConfig>(initialConfig);
   const [isReady, setIsReady] = useState(false);
   const [opponentReady, setOpponentReady] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(3);
-  
   const [opponent, setOpponent] = useState<OpponentState>({
     name: "Opponent",
     cursorIndex: 0,
@@ -40,8 +77,141 @@ export function usePeerDuel(playerName: string = "Typist") {
 
   const peerRef = useRef<Peer | null>(null);
   const connRef = useRef<DataConnection | null>(null);
+  const isHostRef = useRef(false);
+  const snippetRef = useRef(snippet);
+  const configRef = useRef(duelConfig);
 
-  // Initialize PeerJS
+  useEffect(() => {
+    snippetRef.current = snippet;
+  }, [snippet]);
+
+  useEffect(() => {
+    configRef.current = duelConfig;
+  }, [duelConfig]);
+
+  const sendMessage = useCallback((message: DuelDataMessage) => {
+    if (connRef.current?.open) connRef.current.send(message);
+  }, []);
+
+  const resetLobby = useCallback(() => {
+    setDuelState("lobby");
+    setIsReady(false);
+    setOpponentReady(false);
+    setOpponent((previous) => ({
+      ...previous,
+      cursorIndex: 0,
+      wpm: 0,
+      accuracy: 100,
+      completed: false,
+      finishTimeMs: undefined,
+    }));
+  }, []);
+
+  const sendAuthoritativeLobby = useCallback((type: "LOBBY_SYNC" | "REMATCH" = "LOBBY_SYNC") => {
+    sendMessage({
+      type,
+      payload: {
+        opponentName: playerName,
+        snippet: snippetRef.current,
+        config: configRef.current,
+      },
+    });
+  }, [playerName, sendMessage]);
+
+  const applyHostState = useCallback((payload?: DuelDataMessage["payload"]) => {
+    if (payload?.snippet) {
+      setSnippet(payload.snippet);
+      snippetRef.current = payload.snippet;
+    }
+    if (payload?.config) {
+      setDuelConfig(payload.config);
+      configRef.current = payload.config;
+    }
+  }, []);
+
+  const handleMessage = useCallback((data: DuelDataMessage) => {
+    const payload = data.payload;
+    if (payload?.opponentName) {
+      setOpponent((previous) => ({ ...previous, name: payload.opponentName! }));
+    }
+
+    switch (data.type) {
+      case "LOBBY_REQUEST":
+        if (isHostRef.current) sendAuthoritativeLobby();
+        break;
+      case "LOBBY_SYNC":
+        if (!isHostRef.current) {
+          const changed =
+            payload?.snippet?.id !== snippetRef.current.id ||
+            JSON.stringify(payload?.config) !== JSON.stringify(configRef.current);
+          applyHostState(payload);
+          // Settings changed under the guest — re-confirm rather than racing something they never agreed to.
+          if (changed) {
+            setIsReady(false);
+            sendMessage({ type: "READY", payload: { isReady: false } });
+          }
+        }
+        break;
+      case "READY":
+        setOpponentReady(Boolean(payload?.isReady));
+        break;
+      case "START_COUNTDOWN":
+        if (!isHostRef.current) applyHostState(payload);
+        setDuelState("countdown");
+        setCountdownSeconds(3);
+        break;
+      case "PROGRESS":
+        setOpponent((previous) => ({
+          ...previous,
+          cursorIndex: payload?.cursorIndex ?? 0,
+          wpm: payload?.wpm ?? 0,
+          accuracy: payload?.accuracy ?? 100,
+          completed: Boolean(payload?.completed),
+          finishTimeMs: payload?.finishTimeMs,
+        }));
+        if (payload?.completed) {
+          setDuelState((previous) => (previous === "racing" ? "finished" : previous));
+        }
+        break;
+      case "FINISHED":
+        setDuelState((previous) => (previous === "racing" ? "finished" : previous));
+        break;
+      case "REMATCH_REQUEST":
+        if (isHostRef.current) {
+          const nextSnippet = snippetForConfig(configRef.current);
+          setSnippet(nextSnippet);
+          snippetRef.current = nextSnippet;
+          resetLobby();
+          sendAuthoritativeLobby("REMATCH");
+        }
+        break;
+      case "REMATCH":
+        if (!isHostRef.current) applyHostState(payload);
+        resetLobby();
+        break;
+    }
+  }, [applyHostState, resetLobby, sendAuthoritativeLobby, sendMessage]);
+
+  const setupConnection = useCallback((connection: DataConnection, hostConnection: boolean) => {
+    connRef.current = connection;
+    connection.on("open", () => {
+      setConnectionStatus("connected");
+      setDuelState("lobby");
+
+      connection.send({
+        type: "LOBBY_REQUEST",
+        payload: { opponentName: playerName },
+      } satisfies DuelDataMessage);
+
+      if (hostConnection) sendAuthoritativeLobby();
+    });
+    connection.on("data", (data) => handleMessage(data as DuelDataMessage));
+    connection.on("close", () => {
+      setConnectionStatus("disconnected");
+      setDuelState("idle");
+    });
+  }, [handleMessage, playerName, sendAuthoritativeLobby]);
+
   const initPeer = useCallback((customId?: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (peerRef.current && !peerRef.current.destroyed) {
@@ -50,170 +220,114 @@ export function usePeerDuel(playerName: string = "Typist") {
       }
 
       const id = (customId || `CODEY-${Math.random().toString(36).substring(2, 8)}`).toUpperCase();
-      const peer = new Peer(id, {
-        debug: 1,
-      });
-
+      const peer = new Peer(id, { debug: 1 });
       peer.on("open", (peerId) => {
         setRoomCode(peerId.toUpperCase());
         resolve(peerId.toUpperCase());
       });
-
-      peer.on("connection", (conn) => {
-        connRef.current = conn;
-        setupConnection(conn);
-      });
-
-      peer.on("error", (err) => {
-        console.error("PeerJS Error:", err);
+      peer.on("connection", (connection) => setupConnection(connection, true));
+      peer.on("error", (error) => {
+        console.error("PeerJS Error:", error);
         setConnectionStatus("disconnected");
-        reject(err);
+        reject(error);
       });
-
       peerRef.current = peer;
     });
-  }, []);
+  }, [setupConnection]);
 
-  const handleMessage = useCallback((data: DuelDataMessage) => {
-    switch (data.type) {
-      case "LOBBY_SYNC":
-        if (data.payload.snippet) setSnippet(data.payload.snippet);
-        if (data.payload.opponentName) {
-          setOpponent((prev) => ({ ...prev, name: data.payload.opponentName }));
-        }
-        break;
-
-      case "READY":
-        setOpponentReady(data.payload.isReady);
-        break;
-
-      case "START_COUNTDOWN":
-        setDuelState("countdown");
-        setCountdownSeconds(3);
-        break;
-
-      case "PROGRESS":
-        setOpponent((prev) => ({
-          ...prev,
-          cursorIndex: data.payload.cursorIndex,
-          wpm: data.payload.wpm,
-          accuracy: data.payload.accuracy,
-          completed: data.payload.completed,
-          finishTimeMs: data.payload.finishTimeMs,
-        }));
-        break;
-
-      case "REMATCH":
-        setDuelState("lobby");
-        setIsReady(false);
-        setOpponentReady(false);
-        setOpponent((prev) => ({ ...prev, cursorIndex: 0, wpm: 0, accuracy: 100, completed: false }));
-        break;
-    }
-  }, []);
-
-  const setupConnection = useCallback((conn: DataConnection) => {
-    conn.on("open", () => {
-      setConnectionStatus("connected");
-      setDuelState("lobby");
-
-      // Send initial lobby info
-      conn.send({
-        type: "LOBBY_SYNC",
-        payload: { opponentName: playerName, snippet },
-      });
-    });
-
-    conn.on("data", (data: any) => {
-      handleMessage(data as DuelDataMessage);
-    });
-
-    conn.on("close", () => {
-      setConnectionStatus("disconnected");
-      setDuelState("idle");
-    });
-  }, [playerName, snippet, handleMessage]);
-
-  // Host creates room
-  const createRoom = useCallback(async (selectedSnippet?: Snippet) => {
+  const createRoom = useCallback(async (selectedSnippet?: Snippet, selectedConfig?: DuelConfig) => {
+    isHostRef.current = true;
     setIsHost(true);
     setConnectionStatus("connecting");
-    const activeSnippet = selectedSnippet || getRandomSnippet();
+    const activeSnippet = selectedSnippet || snippetForConfig(selectedConfig || configRef.current);
+    const activeConfig = selectedConfig || configRef.current;
     setSnippet(activeSnippet);
+    setDuelConfig(activeConfig);
+    snippetRef.current = activeSnippet;
+    configRef.current = activeConfig;
     await initPeer();
     setDuelState("lobby");
   }, [initPeer]);
 
-  // Guest joins room
   const joinRoom = useCallback(async (code: string) => {
+    isHostRef.current = false;
     setIsHost(false);
     setConnectionStatus("connecting");
     await initPeer();
     const formattedCode = code.trim().toUpperCase();
     setRoomCode(formattedCode);
-
-    const conn = peerRef.current!.connect(formattedCode);
-    connRef.current = conn;
-    setupConnection(conn);
+    setupConnection(peerRef.current!.connect(formattedCode), false);
   }, [initPeer, setupConnection]);
 
-  // Broadcast data to opponent
-  const sendMessage = useCallback((msg: DuelDataMessage) => {
-    if (connRef.current && connRef.current.open) {
-      connRef.current.send(msg);
-    }
-  }, []);
-
-  // Update ready state
   const toggleReady = useCallback(() => {
     const nextReady = !isReady;
     setIsReady(nextReady);
     sendMessage({ type: "READY", payload: { isReady: nextReady } });
   }, [isReady, sendMessage]);
 
-  // Host starts countdown
   const startMatch = useCallback(() => {
-    if (!isHost) return;
-    sendMessage({ type: "START_COUNTDOWN" });
+    if (!isHostRef.current) return;
+    sendMessage({
+      type: "START_COUNTDOWN",
+      payload: { snippet: snippetRef.current, config: configRef.current },
+    });
     setDuelState("countdown");
     setCountdownSeconds(3);
-  }, [isHost, sendMessage]);
+  }, [sendMessage]);
 
-  // Countdown timer logic
   useEffect(() => {
     if (duelState !== "countdown") return;
     if (countdownSeconds > 0) {
-      const timer = setTimeout(() => setCountdownSeconds((s) => s - 1), 1000);
+      const timer = setTimeout(() => setCountdownSeconds((seconds) => seconds - 1), 1000);
       return () => clearTimeout(timer);
-    } else {
-      setDuelState("racing");
     }
+    setDuelState("racing");
   }, [duelState, countdownSeconds]);
 
-  // Send live progress during race
   const sendProgress = useCallback((progress: { cursorIndex: number; wpm: number; accuracy: number; completed: boolean; finishTimeMs?: number }) => {
-    sendMessage({
-      type: "PROGRESS",
-      payload: progress,
-    });
+    sendMessage({ type: "PROGRESS", payload: progress });
   }, [sendMessage]);
 
-  // Request rematch
-  const requestRematch = useCallback(() => {
-    const nextSnippet = getRandomSnippet();
+  // Ends the local race and tells the opponent the run is over.
+  const finishRace = useCallback((summary: { cursorIndex: number; wpm: number; accuracy: number; finishTimeMs: number }) => {
+    setDuelState((previous) => (previous === "racing" ? "finished" : previous));
+    sendMessage({ type: "PROGRESS", payload: { ...summary, completed: true } });
+    sendMessage({ type: "FINISHED", payload: { opponentName: playerName } });
+  }, [playerName, sendMessage]);
+
+  const updateLobbyConfig = useCallback((newConfig: DuelConfig, newSnippet?: Snippet) => {
+    setDuelConfig(newConfig);
+    configRef.current = newConfig;
+    if (newSnippet) {
+      setSnippet(newSnippet);
+      snippetRef.current = newSnippet;
+    }
+    if (isHostRef.current) sendAuthoritativeLobby();
+  }, [sendAuthoritativeLobby]);
+
+  const requestRematch = useCallback((customSnippet?: Snippet) => {
+    if (!isHostRef.current) {
+      sendMessage({ type: "REMATCH_REQUEST", payload: { opponentName: playerName } });
+      return;
+    }
+
+    const nextSnippet = customSnippet || snippetForConfig(configRef.current);
     setSnippet(nextSnippet);
-    setIsReady(false);
-    setOpponentReady(false);
-    setDuelState("lobby");
-    sendMessage({ type: "REMATCH", payload: { snippet: nextSnippet } });
-  }, [sendMessage]);
+    snippetRef.current = nextSnippet;
+    resetLobby();
+    sendMessage({
+      type: "REMATCH",
+      payload: { snippet: nextSnippet, config: configRef.current, opponentName: playerName },
+    });
+  }, [playerName, resetLobby, sendMessage]);
 
-  // Leave / close connection
   const leaveDuel = useCallback(() => {
-    if (connRef.current) connRef.current.close();
-    if (peerRef.current) peerRef.current.destroy();
+    connRef.current?.close();
+    peerRef.current?.destroy();
     connRef.current = null;
     peerRef.current = null;
+    isHostRef.current = false;
+    setIsHost(false);
     setDuelState("idle");
     setConnectionStatus("disconnected");
     setIsReady(false);
@@ -226,7 +340,8 @@ export function usePeerDuel(playerName: string = "Typist") {
     roomCode,
     connectionStatus,
     snippet,
-    setSnippet,
+    duelConfig,
+    updateLobbyConfig,
     isReady,
     opponentReady,
     countdownSeconds,
@@ -236,6 +351,7 @@ export function usePeerDuel(playerName: string = "Typist") {
     toggleReady,
     startMatch,
     sendProgress,
+    finishRace,
     requestRematch,
     leaveDuel,
   };

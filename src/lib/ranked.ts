@@ -27,6 +27,8 @@ export interface RankedSubmission {
   challengeHash: string;
   completedCode: string;
   mistakes: number;
+  keystrokes: number;
+  correctChars: number;
   totalMs: number;
   keyIntervals: number[];
   language: string;
