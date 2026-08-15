@@ -1,5 +1,5 @@
 import type { Snippet, SnippetLength } from '../types';
-import { SNIPPET_LENGTH_SPEC } from '../utils/ranking';
+import { SNIPPET_LENGTH_SPEC } from '../utils/ranking.js';
 
 export const SNIPPETS: Snippet[] = [
   // TypeScript
