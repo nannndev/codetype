@@ -71,7 +71,11 @@ export function syncKeyboardStatsNow(userId: string): Promise<boolean> {
       },
       body: JSON.stringify({ batchId: pending.batchId, stats: pending.stats }),
     });
-    if (!response.ok) return false;
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      console.error("Unable to sync keyboard stats", response.status, message);
+      return false;
+    }
 
     // Only clear the exact batch that was acknowledged; new keypresses may have
     // opened another batch while this request was in flight.

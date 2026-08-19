@@ -182,11 +182,19 @@ export default function App() {
       const isCustom = snippet.sourceType === "custom";
       const pb = isCustom ? null : getPersonalBest(r.language, r.mode, r.duration, r.snippetLength);
       setPreviousBest(pb);
+
+      // Persist the last buffered keys before any result/history operation can fail.
+      // Keyboard analytics also applies to custom practice, even though its run is not ranked or synced.
+      flushPhysicalKeypresses();
+      if (userIdRef.current) {
+        void syncKeyboardStatsNow(userIdRef.current).then((synced) => {
+          if (!synced) console.warn("Keyboard analytics sync is pending and will retry.");
+        });
+      }
+
       if (!isCustom) try {
         saveResult(r);
         updateStreak();
-        flushPhysicalKeypresses();
-        if (userIdRef.current) void syncKeyboardStatsNow(userIdRef.current);
         setGoalRefreshKey((key) => key + 1);
         if (!isRanked && userIdRef.current && isRankEligible(r)) {
           void uploadRun(userIdRef.current, r)

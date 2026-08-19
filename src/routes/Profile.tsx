@@ -95,7 +95,12 @@ export default function Profile() {
   const userKeyStats = useMemo(() => {
     const localStats = isOwnProfile
       ? cloudKeyStats
-        ? mergeStatsMaps(cloudKeyStats, getPendingKeyboardStats(viewedUserId)?.stats || {})
+        ? (() => {
+            const pendingStats = getPendingKeyboardStats(viewedUserId)?.stats || {};
+            return Object.keys(cloudKeyStats).length > 0 || Object.keys(pendingStats).length > 0
+              ? mergeStatsMaps(cloudKeyStats, pendingStats)
+              : getVisibleKeyStats(viewedUserId);
+          })()
         : getVisibleKeyStats(viewedUserId)
       : getStoredKeyStats(viewedUserId);
     return computeKeyStatsFromCloudRuns(runs, localStats);

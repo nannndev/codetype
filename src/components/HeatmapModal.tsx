@@ -22,7 +22,14 @@ export function HeatmapModal({ isOpen, onClose, onDrillKey }: HeatmapModalProps)
     let cancelled = false;
     void getCloudKeyboardStats().then((cloudStats) => {
       if (cancelled || !cloudStats) return;
-      setStats(mergeStatsMaps(cloudStats, getPendingKeyboardStats(user.$id)?.stats || {}));
+      const pendingStats = getPendingKeyboardStats(user.$id)?.stats || {};
+      const hasCloudData = Object.keys(cloudStats).length > 0;
+      const hasPendingData = Object.keys(pendingStats).length > 0;
+      setStats(
+        hasCloudData || hasPendingData
+          ? mergeStatsMaps(cloudStats, pendingStats)
+          : getVisibleKeyStats(user.$id),
+      );
     });
     return () => {
       cancelled = true;
