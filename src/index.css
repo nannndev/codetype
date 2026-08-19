@@ -78,6 +78,7 @@
     linear-gradient(180deg, color-mix(in oklab, var(--card) 65%, transparent), transparent 45%),
     repeating-linear-gradient(0deg, transparent 0 31px, color-mix(in oklab, var(--foreground) 4%, transparent) 32px);
   transition: box-shadow 120ms ease, border-color 120ms ease;
+  box-shadow: 0 24px 80px color-mix(in oklab, var(--foreground) 7%, transparent);
 }
 
 .arcade-stage.is-hit { box-shadow: inset 0 0 0 2px color-mix(in oklab, #34d399 70%, transparent); }
@@ -87,6 +88,8 @@
 .arcade-note span { display: grid; width: 2.75rem; height: 2.75rem; place-items: center; transform: translateX(-50%); border: 1px solid var(--foreground); background: var(--foreground); color: var(--background); font-weight: 900; box-shadow: 0 8px 0 color-mix(in oklab, var(--foreground) 18%, transparent); }
 .arcade-icon-button { display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid var(--border); background: var(--background); transition: transform 120ms ease; }
 .arcade-icon-button:active { transform: translateY(1px); }
+.arcade-end-panel { position: relative; }
+.arcade-end-panel::after { content: "// CODEY_ARCADE"; position: absolute; right: 1rem; top: -1.55rem; color: var(--muted-foreground); font-size: 9px; letter-spacing: .16em; }
 
 @media (min-width: 1024px) {
   @keyframes arcade-fall {

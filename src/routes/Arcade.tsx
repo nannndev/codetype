@@ -205,7 +205,7 @@ export default function Arcade() {
           </div>
         </header>
 
-        <section className="grid flex-1 gap-5 py-5 lg:grid-cols-[220px_minmax(0,1fr)_220px]">
+        <section className="grid flex-1 gap-4 py-5 lg:grid-cols-[180px_minmax(560px,1fr)_200px] xl:grid-cols-[200px_minmax(640px,1fr)_220px]">
           <aside className="order-2 grid grid-cols-3 gap-px border bg-border lg:order-1 lg:grid-cols-1 lg:self-start">
             {[
               ["Score", score.toLocaleString(), Trophy],
@@ -224,7 +224,7 @@ export default function Arcade() {
             ref={gameRef}
             tabIndex={-1}
             onKeyDown={handleKeyDown}
-            className={`arcade-stage relative min-h-[560px] overflow-hidden border outline-none ${flash ? `is-${flash}` : ""}`}
+            className={`arcade-stage order-1 relative min-h-[560px] overflow-hidden border outline-none lg:order-2 ${flash ? `is-${flash}` : ""}`}
           >
             <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between border-b bg-background/80 px-4 py-3 backdrop-blur-sm">
               <div><p className="text-sm font-black">CODE RAIN</p><p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Pattern engine · level {difficulty}</p></div>
@@ -259,18 +259,30 @@ export default function Arcade() {
             </div>
 
             {gameState !== "running" && (
-              <div className="absolute inset-0 z-20 grid place-items-center bg-background/82 p-6 text-center backdrop-blur-sm">
-                <div className="max-w-md">
-                  <p className="mb-3 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">{gameState === "finished" ? "Run complete" : gameState === "paused" ? "System paused" : "New arcade mode"}</p>
-                  <h1 className="text-4xl font-black tracking-tighter sm:text-6xl">Catch the code rain.</h1>
-                  <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                    Hit falling keys inside the scan line. Patterns evolve like a rhythm chart, but timing stays readable without music.
+              <div className="absolute inset-0 z-20 grid place-items-center bg-background/88 p-5 backdrop-blur-md">
+                <div className="arcade-end-panel w-full max-w-xl border bg-background/92 p-6 shadow-[12px_12px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)] sm:p-8">
+                  <div className="flex items-center justify-between border-b pb-4">
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{gameState === "finished" ? "Session archived" : gameState === "paused" ? "System paused" : "Arcade protocol"}</p>
+                    <span className="size-2 bg-foreground" />
+                  </div>
+                  <h1 className="mt-6 max-w-lg text-4xl font-black leading-[0.92] tracking-[-0.06em] sm:text-6xl">{gameState === "finished" ? "Rain cleared." : "Catch the code rain."}</h1>
+                  <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
+                    {gameState === "finished"
+                      ? "Run it again to chase a cleaner combo and faster patterns."
+                      : "Strike falling keys inside the scan line. Patterns accelerate and mutate as your run develops."}
                   </p>
-                  {gameState === "finished" && <p className="mt-5 font-bold">Score {score.toLocaleString()} · Best combo {bestCombo}x</p>}
-                  <button type="button" onClick={startGame} className="mt-7 inline-flex items-center gap-2 border bg-foreground px-5 py-3 text-sm font-black text-background active:translate-y-px">
-                    <Play className="size-4" /> {gameState === "paused" ? "Resume rain" : "Start arcade"}
-                  </button>
-                  <p className="mt-4 text-[10px] text-muted-foreground">A S D F · J K L ; · Esc pauses · Enter starts</p>
+                  {gameState === "finished" && (
+                    <div className="mt-7 grid grid-cols-2 border-y">
+                      <div className="py-4"><p className="text-2xl font-black tabular-nums">{score.toLocaleString()}</p><p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Final score</p></div>
+                      <div className="border-l py-4 pl-5"><p className="text-2xl font-black tabular-nums">{bestCombo}x</p><p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Best combo</p></div>
+                    </div>
+                  )}
+                  <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <button type="button" onClick={startGame} className="inline-flex items-center justify-center gap-2 border bg-foreground px-5 py-3 text-sm font-black text-background active:translate-y-px">
+                      <Play className="size-4" /> {gameState === "paused" ? "Resume rain" : gameState === "finished" ? "Run again" : "Start arcade"}
+                    </button>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground">A S D F · J K L ;<br />Esc pauses · Enter starts</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -282,8 +294,8 @@ export default function Arcade() {
               <div className="mt-4 flex gap-2">{Array.from({ length: 5 }, (_, index) => <Heart key={index} className={`size-5 ${index < lives ? "fill-foreground text-foreground" : "text-border"}`} />)}</div>
             </div>
             <div className="border p-5 text-xs leading-relaxed text-muted-foreground">
-              <p className="font-bold text-foreground">Fair by design</p>
-              <p className="mt-2">Arcade score stays separate from WPM, ranked runs, streaks, and the main leaderboard. Physical-key accuracy still contributes to your private heatmap.</p>
+              <p className="font-bold text-foreground">Private telemetry</p>
+              <p className="mt-2">Arcade stays outside ranked WPM. Only physical-key accuracy contributes to your private heatmap.</p>
             </div>
           </aside>
         </section>
