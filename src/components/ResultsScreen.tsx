@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ErrorHeatmap } from "@/components/ErrorHeatmap";
 import { WeakKeys } from "@/components/WeakKeys";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { RefreshCw, ArrowRight, Trophy, ImageDown } from "lucide-react";
 import { useAuth, githubUsernameFromUser } from "@/components/AuthProvider";
 import type { ShareCardOptions } from "@/lib/share-result";
 import { SharePreviewDialog } from "@/components/SharePreviewDialog";
-import { HeatmapModal } from "@/components/HeatmapModal";
 import { Zap } from "lucide-react";
 import { rankRejectionReason, describeRankRejection } from "@/utils/ranking";
 import type { RankedStatus } from "@/hooks/useRankedGame";
@@ -26,7 +26,6 @@ interface ResultsScreenProps {
 export function ResultsScreen({ result, previousBest, verifiedResult, rankedStatus, rankedError, onRetry, onNext, onDrill }: ResultsScreenProps) {
   const { user } = useAuth();
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
-  const [showHeatmap, setShowHeatmap] = useState(false);
   const modeLabel =
     result.mode === 'timed'
       ? `${result.duration / 1000}s`
@@ -190,8 +189,8 @@ export function ResultsScreen({ result, previousBest, verifiedResult, rankedStat
           <Button onClick={() => setShareOptions({ result, username: user ? githubUsernameFromUser(user) || user.name || undefined : undefined })} variant="outline" size="lg" className="flex-1 border-foreground/25 bg-foreground text-background hover:bg-foreground/85 hover:text-background">
             <ImageDown data-icon="inline-start" /> Share result
           </Button>
-          <Button onClick={() => setShowHeatmap(true)} variant="outline" size="lg" className="flex-1 border-amber-500/40 text-amber-500 hover:bg-amber-500/10">
-            <Zap className="size-4" /> Keyboard Heatmap
+          <Button asChild variant="outline" size="lg" className="flex-1 border-amber-500/40 text-amber-500 hover:bg-amber-500/10">
+            <Link to="/analytics/keyboard"><Zap className="size-4" /> Keyboard analytics</Link>
           </Button>
         </div>
         <div className="flex gap-2 w-full justify-center">
@@ -209,7 +208,6 @@ export function ResultsScreen({ result, previousBest, verifiedResult, rankedStat
         </span>
       </div>
       <SharePreviewDialog options={shareOptions} onClose={() => setShareOptions(null)} />
-      <HeatmapModal isOpen={showHeatmap} onClose={() => setShowHeatmap(false)} />
     </div>
   );
 }

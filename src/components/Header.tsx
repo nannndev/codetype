@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { BarChart3, Heart, LogIn, LogOut, Palette, Settings, Swords, Trophy, UserRound, Users, Volume2, Zap } from "lucide-react";
+import { BarChart3, Gamepad2, Heart, Keyboard, LogIn, LogOut, Palette, Settings, Swords, Trophy, UserRound, Users, Volume2 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "./ui/button";
 import { useAuth } from "./AuthProvider";
-import { HeatmapModal } from "./HeatmapModal";
 import { SoundPackModal } from "./SoundPackModal";
 import { ThemeStudioModal } from "./ThemeStudioModal";
 
 export function Header() {
   const { user, loading, configured, login, logout } = useAuth();
-  const [showHeatmapModal, setShowHeatmapModal] = useState(false);
   const [showSoundModal, setShowSoundModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
 
@@ -34,6 +32,14 @@ export function Header() {
         >
           <Swords className="size-[18px]" />
         </Link>
+        <Link
+          to="/arcade"
+          className="rounded-md p-2 hover:bg-muted transition-colors text-amber-500 hover:text-amber-400"
+          aria-label="Open Code Rain Arcade"
+          title="Code Rain Arcade"
+        >
+          <Gamepad2 className="size-[18px]" />
+        </Link>
         <button
           type="button"
           onClick={() => setShowThemeModal(true)}
@@ -52,15 +58,14 @@ export function Header() {
         >
           <Volume2 className="size-[18px]" />
         </button>
-        <button
-          type="button"
-          onClick={() => setShowHeatmapModal(true)}
+        <Link
+          to="/analytics/keyboard"
           className="rounded-md p-2 hover:bg-muted transition-colors text-amber-500 hover:text-amber-400"
-          aria-label="Open Keyboard Heatmap"
-          title="Keyboard Heatmap & Analytics"
+          aria-label="Open keyboard analytics"
+          title="Keyboard Analytics"
         >
-          <Zap className="size-[18px]" />
-        </button>
+          <Keyboard className="size-[18px]" />
+        </Link>
         <Link
           to="/leaderboard"
           className="rounded-md p-2 hover:bg-muted transition-colors"
@@ -123,7 +128,6 @@ export function Header() {
           )
         ) : null}
       </div>
-      <HeatmapModal isOpen={showHeatmapModal} onClose={() => setShowHeatmapModal(false)} />
       <SoundPackModal isOpen={showSoundModal} onClose={() => setShowSoundModal(false)} />
       <ThemeStudioModal isOpen={showThemeModal} onClose={() => setShowThemeModal(false)} />
     </header>

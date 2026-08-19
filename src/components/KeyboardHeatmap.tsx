@@ -165,7 +165,7 @@ export function KeyboardHeatmap({ statsMap: externalStats, onDrillKey }: Keyboar
             <Flame className="size-4 text-amber-500" /> Keys Needing Practice ({weakKeys.length})
           </h4>
           {weakKeys.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No weak keys detected! All pressed keys have $\ge 92\%$ accuracy.</p>
+            <p className="text-xs text-muted-foreground italic">No weak keys detected. All pressed keys have at least 92% accuracy.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {weakKeys.map((s) => (
