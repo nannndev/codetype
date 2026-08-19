@@ -200,7 +200,10 @@ function migrationStorageKey(userId: string): string {
 }
 
 function createBatchId(): string {
-  return `kb_${Date.now().toString(36)}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const randomPart = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID().replace(/-/g, "").slice(0, 16)
+    : `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.slice(0, 16);
+  return `kb_${Date.now().toString(36)}_${randomPart}`;
 }
 
 export function getPendingKeyboardStats(userId?: string | null): PendingKeyboardStats | null {
