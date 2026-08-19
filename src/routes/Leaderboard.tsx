@@ -15,6 +15,46 @@ import { DivisionBadge } from "@/components/DivisionBadge";
 
 type Board = "snippet" | "timed";
 
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`leaderboard-shimmer overflow-hidden rounded-md bg-foreground/[0.07] ${className}`} />;
+}
+
+function LeaderboardSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-live="polite" aria-label="Loading leaderboard">
+      <section className="overflow-hidden rounded-2xl border bg-card/65 p-3 sm:p-4">
+        <div className="mb-3 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          <LoaderCircle className="size-3 animate-spin" /> Syncing ranked telemetry
+        </div>
+        <div className="grid grid-cols-3 items-end gap-2 sm:gap-3">
+          {["h-44", "h-52", "h-40"].map((height, index) => (
+            <div key={height} className={`flex ${height} flex-col items-center justify-end rounded-xl border bg-card/70 p-3 ${index === 1 ? "border-amber-500/20" : ""}`}>
+              <SkeletonBlock className="mb-3 size-11 rounded-full" />
+              <SkeletonBlock className="mb-2 h-3 w-3/5" />
+              <SkeletonBlock className="mb-1 h-7 w-2/5" />
+              <SkeletonBlock className="h-8 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="overflow-hidden rounded-2xl border bg-card/80">
+        <div className="grid grid-cols-[40px_1fr_70px_70px] gap-3 border-b bg-muted/30 px-4 py-3 sm:grid-cols-[48px_1fr_90px_90px_90px]">
+          {["w-5", "w-20", "hidden w-12 sm:block", "ml-auto w-12", "ml-auto w-14"].map((width) => <SkeletonBlock key={width} className={`h-2.5 ${width}`} />)}
+        </div>
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="grid grid-cols-[40px_1fr_70px_70px] items-center gap-3 border-b px-4 py-3 last:border-0 sm:grid-cols-[48px_1fr_90px_90px_90px]" style={{ opacity: 1 - index * 0.1 }}>
+            <SkeletonBlock className="size-7 rounded-lg" />
+            <div className="flex items-center gap-2.5"><SkeletonBlock className="size-7 shrink-0 rounded-md" /><SkeletonBlock className="h-3 w-24 sm:w-36" /></div>
+            <SkeletonBlock className="hidden h-3 w-14 sm:block" />
+            <SkeletonBlock className="ml-auto h-4 w-11" />
+            <SkeletonBlock className="ml-auto h-3 w-12" />
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 function displayName(run: CloudRun, profiles: Map<string, CloudProfile>): string {
   const profile = profiles.get(run.userId);
   return profile?.displayName || profile?.githubUsername || `Typist ${run.userId.slice(0, 5)}`;
@@ -132,6 +172,7 @@ export default function Leaderboard() {
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
   const languages = useMemo(() => getLanguages(), []);
   useEffect(() => {
+    let cancelled = false;
     if (DEMO_MODE) {
       setLoading(true);
       setTimeout(() => {
@@ -154,10 +195,12 @@ export default function Leaderboard() {
       verifiedOnly: true,
     })
       .then(({ runs: nextRuns, profiles: nextProfiles }) => {
+        if (cancelled) return;
         setRuns(nextRuns);
         setProfiles(nextProfiles);
       })
       .catch((loadError) => {
+        if (cancelled) return;
         console.error("Unable to load leaderboard", loadError);
         setError(true);
         const message = loadError instanceof Error ? loadError.message : "";
@@ -167,7 +210,12 @@ export default function Leaderboard() {
             : "Unable to load this leaderboard category. Try refreshing in a moment."
         );
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [board, language, snippetLength, duration]);
 
   const formatLabel = board === "snippet" ? `${snippetLength.charAt(0).toUpperCase()}${snippetLength.slice(1)} snippet` : `${duration}s timed`;
@@ -265,9 +313,7 @@ export default function Leaderboard() {
         </section>
 
         {loading ? (
-          <div className="grid h-80 place-items-center rounded-2xl border bg-card/70">
-            <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <LeaderboardSkeleton />
         ) : error ? (
           <div className="grid h-80 place-items-center rounded-2xl border bg-card/70 px-5 text-center text-sm text-muted-foreground">{errorMessage}</div>
         ) : runs.length === 0 ? (

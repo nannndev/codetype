@@ -28,7 +28,11 @@ import {
   getPersonalBest,
 } from "@/utils";
 import { isRankEligible } from "@/utils/ranking";
-import { recordRunKeypressStats } from "@/utils/keyboard-analytics";
+import {
+  normalizePhysicalKey,
+  recordPhysicalKeypressStats,
+  type PhysicalKeypress,
+} from "@/utils/keyboard-analytics";
 import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 import { RankedAuthModal } from "@/components/RankedAuthModal";
@@ -82,6 +86,13 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const previousSelectionRef = useRef({ language, mode, duration, snippetLength: preferences.snippetLength });
   const submittedRankedSessionRef = useRef<string | null>(null);
+  const physicalKeypressesRef = useRef<PhysicalKeypress[]>([]);
+  const lastPhysicalKeyAtRef = useRef<number | null>(null);
+
+  const resetPhysicalKeypresses = useCallback(() => {
+    physicalKeypressesRef.current = [];
+    lastPhysicalKeyAtRef.current = null;
+  }, []);
 
   useEffect(() => {
     userIdRef.current = user?.$id ?? null;
@@ -105,10 +116,11 @@ export default function App() {
     previousSelectionRef.current = { language, mode, duration, snippetLength: preferences.snippetLength };
     if (selectionChanged && (status === "idle" || status === "finished")) {
       setResult(null);
+      resetPhysicalKeypresses();
       reset();
       focusWorkspace();
     }
-  }, [language, mode, duration, preferences.snippetLength, status, reset, focusWorkspace]);
+  }, [language, mode, duration, preferences.snippetLength, status, reset, focusWorkspace, resetPhysicalKeypresses]);
 
   useEffect(() => {
     if (status === "finished" && keystrokes > 0) {
@@ -153,7 +165,7 @@ export default function App() {
       if (!isCustom) try {
         saveResult(r);
         updateStreak();
-        recordRunKeypressStats({ userId: userIdRef.current, input, code: snippet.code, errorPositions: errorHistory });
+        recordPhysicalKeypressStats(physicalKeypressesRef.current, userIdRef.current);
         setGoalRefreshKey((key) => key + 1);
         if (!isRanked && userIdRef.current && isRankEligible(r)) {
           void uploadRun(userIdRef.current, r)
@@ -196,6 +208,7 @@ export default function App() {
 
   const handleRetry = useCallback(() => {
     setResult(null);
+    resetPhysicalKeypresses();
 
     if (isRanked && user) {
       void ranked.fetchChallenge({
@@ -217,7 +230,7 @@ export default function App() {
 
     reset();
     focusWorkspace();
-  }, [isRanked, user, ranked, language, mode, preferences.snippetLength, duration, loadSnippet, reset, focusWorkspace]);
+  }, [isRanked, user, ranked, language, mode, preferences.snippetLength, duration, loadSnippet, reset, focusWorkspace, resetPhysicalKeypresses]);
 
   const handleLanguageChange = useCallback(
     (lang: string) => {
@@ -293,6 +306,30 @@ export default function App() {
         return;
       }
 
+      const physicalKey = normalizePhysicalKey(e.code, e.key, e.location);
+      if (physicalKey) {
+        const now = performance.now();
+        const expected = snippet.code[input.length] ?? "";
+        let isError: boolean | undefined;
+
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          isError = e.key !== expected;
+        } else if (e.key === "Enter") {
+          isError = expected !== "\n";
+        } else if (e.key === "Tab") {
+          isError = expected !== "\t" && expected !== " ";
+        } else if (e.key === "Backspace") {
+          isError = input.length === 0;
+        }
+
+        physicalKeypressesRef.current.push({
+          key: physicalKey,
+          delayMs: lastPhysicalKeyAtRef.current === null ? 0 : now - lastPhysicalKeyAtRef.current,
+          isError,
+        });
+        lastPhysicalKeyAtRef.current = now;
+      }
+
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         if (ranked.isRanked) ranked.recordKeypress();
@@ -327,7 +364,7 @@ export default function App() {
         engineHandleKey("\n");
       }
     },
-    [status, mode, engineHandleKey, handleRetry, stop, playKeyboardSound, editorFocusMode, preferences.focusShortcut, preferences.restartShortcut],
+    [status, mode, input, snippet.code, engineHandleKey, handleRetry, stop, playKeyboardSound, editorFocusMode, preferences.focusShortcut, preferences.restartShortcut],
   );
 
   const charStates = useMemo(() => computeCharStates(snippet.code, input), [snippet.code, input]);
@@ -368,6 +405,7 @@ export default function App() {
   });
 
   const handleCustomSnippet = useCallback((nextSnippet: import("@/types").Snippet) => {
+    resetPhysicalKeypresses();
     previousSelectionRef.current = { language: nextSnippet.language, mode: "snippet", duration: null, snippetLength: preferences.snippetLength };
     setCustomSnippet(nextSnippet);
     setLanguage(nextSnippet.language);
@@ -376,9 +414,10 @@ export default function App() {
     setResult(null);
     loadSnippet(nextSnippet);
     focusWorkspace();
-  }, [loadSnippet, focusWorkspace, preferences.snippetLength]);
+  }, [loadSnippet, focusWorkspace, preferences.snippetLength, resetPhysicalKeypresses]);
 
   const exitCustomPractice = useCallback(() => {
+    resetPhysicalKeypresses();
     setCustomSnippet(null);
     setResult(null);
     const nextSnippet = getPublicSnippet();
@@ -386,22 +425,24 @@ export default function App() {
     previousSelectionRef.current = { language: "All", mode: "snippet", duration: null, snippetLength: preferences.snippetLength };
     loadSnippet(nextSnippet);
     focusWorkspace();
-  }, [getPublicSnippet, loadSnippet, focusWorkspace, preferences.snippetLength]);
+  }, [getPublicSnippet, loadSnippet, focusWorkspace, preferences.snippetLength, resetPhysicalKeypresses]);
 
   const handleNextSnippet = useCallback(() => {
     setResult(null);
+    resetPhysicalKeypresses();
     if (customSnippet) {
       exitCustomPractice();
       return;
     }
     reset();
     focusWorkspace();
-  }, [customSnippet, exitCustomPractice, reset, focusWorkspace]);
+  }, [customSnippet, exitCustomPractice, reset, focusWorkspace, resetPhysicalKeypresses]);
 
   const rankedSwitchPending = rankedStatus === "requesting_challenge";
   const rankedSwitchEngaged = isRanked || rankedSwitchPending;
   const handleActivityModeToggle = useCallback(() => {
     if (rankedStatus === "requesting_challenge") return;
+    resetPhysicalKeypresses();
 
     if (status === "running" || status === "finished") {
       setResult(null);
@@ -431,7 +472,7 @@ export default function App() {
         sourceType: "public",
       });
     }).catch(() => undefined);
-  }, [status, rankedStatus, isRanked, ranked, user, language, mode, preferences.snippetLength, duration, loadSnippet, reset]);
+  }, [status, rankedStatus, isRanked, ranked, user, language, mode, preferences.snippetLength, duration, loadSnippet, reset, resetPhysicalKeypresses]);
 
   return (
     <div

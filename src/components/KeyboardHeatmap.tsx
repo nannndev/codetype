@@ -265,6 +265,7 @@ export function KeyboardHeatmap({ statsMap: externalStats, onDrillKey }: Keyboar
         }`}
       >
         <span>{label}</span>
+        {keyInfo.text && <span className="text-[8px] leading-none opacity-80 font-semibold">{keyInfo.text}</span>}
       </button>
     );
   }

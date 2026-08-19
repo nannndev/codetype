@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/**/*.ts": {
+      "regions": ["sin1"]
+    }
+  },
   "rewrites": [
     { "source": "/history", "destination": "/index.html" },
     { "source": "/statistics", "destination": "/index.html" },

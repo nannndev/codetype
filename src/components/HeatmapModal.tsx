@@ -1,5 +1,7 @@
 import { Zap, X } from "lucide-react";
 import { KeyboardHeatmap } from "@/components/KeyboardHeatmap";
+import { useAuth } from "@/components/AuthProvider";
+import { getStoredKeyStats } from "@/utils/keyboard-analytics";
 
 interface HeatmapModalProps {
   isOpen: boolean;
@@ -8,6 +10,7 @@ interface HeatmapModalProps {
 }
 
 export function HeatmapModal({ isOpen, onClose, onDrillKey }: HeatmapModalProps) {
+  const { user } = useAuth();
   if (!isOpen) return null;
 
   return (
@@ -37,6 +40,7 @@ export function HeatmapModal({ isOpen, onClose, onDrillKey }: HeatmapModalProps)
         </div>
 
         <KeyboardHeatmap
+          statsMap={getStoredKeyStats(user?.$id)}
           onDrillKey={(key) => {
             if (onDrillKey) onDrillKey(key);
             onClose();

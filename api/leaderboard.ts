@@ -63,7 +63,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Cache-Control", "public, s-maxage=15, stale-while-revalidate=45");
+  res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
 
   if (req.method === "OPTIONS") return void res.status(200).json({ ok: true });
   if (req.method !== "GET") return void res.status(405).json({ error: "Method not allowed." });
@@ -77,6 +77,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const databases = createDatabases();
 
   try {
+    const requestStartedAt = performance.now();
+    // Most boards fit in the first 100 profiles. Starting this now removes the
+    // runs -> profiles network waterfall; missing profiles are fetched below.
+    const warmProfilesPromise = databases.listDocuments({
+      databaseId,
+      collectionId: profilesCollectionId,
+      queries: [Query.limit(100)],
+    });
     const runs: RunDocument[] = [];
     const seenUsers = new Set<string>();
     let cursor: string | undefined;
@@ -108,14 +116,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     const profileIds = runs.map((run) => run.userId);
-    const profiles = profileIds.length === 0
+    const neededProfiles = new Set(profileIds);
+    const warmProfiles = (await warmProfilesPromise).documents.filter((profile) => neededProfiles.has(profile.$id));
+    const foundProfiles = new Set(warmProfiles.map((profile) => profile.$id));
+    const missingProfileIds = profileIds.filter((id) => !foundProfiles.has(id));
+    const fallbackProfiles = missingProfileIds.length === 0
       ? []
       : (await databases.listDocuments({
           databaseId,
           collectionId: profilesCollectionId,
-          queries: [Query.equal("$id", profileIds), Query.limit(profileIds.length)],
+          queries: [Query.equal("$id", missingProfileIds), Query.limit(missingProfileIds.length)],
         })).documents;
+    const profiles = [...warmProfiles, ...fallbackProfiles];
 
+    res.setHeader("Server-Timing", `appwrite;dur=${(performance.now() - requestStartedAt).toFixed(1)}`);
     res.status(200).json({ runs, profiles });
   } catch (error) {
     console.error("Leaderboard aggregation failed:", error);

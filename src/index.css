@@ -564,3 +564,26 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+@keyframes leaderboard-shimmer-scan {
+  0% { transform: translateX(-140%); }
+  100% { transform: translateX(240%); }
+}
+
+.leaderboard-shimmer {
+  position: relative;
+  isolation: isolate;
+}
+
+.leaderboard-shimmer::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  width: 45%;
+  transform: translateX(-140%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, currentColor 13%, transparent), transparent);
+  animation: leaderboard-shimmer-scan 1.45s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-shimmer::after { animation: none; }
+}
