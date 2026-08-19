@@ -11,7 +11,8 @@ import { SharePreviewDialog } from "@/components/SharePreviewDialog";
 import type { RunResult } from "@/types";
 import { KeyboardHeatmap } from "@/components/KeyboardHeatmap";
 import { WpmAnalyticsChart } from "@/components/WpmAnalyticsChart";
-import { computeKeyStatsFromCloudRuns, getStoredKeyStats } from "@/utils/keyboard-analytics";
+import { computeKeyStatsFromCloudRuns, getPendingKeyboardStats, getStoredKeyStats, getVisibleKeyStats, mergeStatsMaps, type KeyboardStatsMap } from "@/utils/keyboard-analytics";
+import { getCloudKeyboardStats } from "@/lib/keyboard-stats-cloud";
 import { DivisionBadge } from "@/components/DivisionBadge";
 
 function cloudRunAsResult(run: CloudRun): RunResult {
@@ -48,6 +49,7 @@ export default function Profile() {
   const [runs, setRuns] = useState<CloudRun[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [shareOptions, setShareOptions] = useState<ShareCardOptions | null>(null);
+  const [cloudKeyStats, setCloudKeyStats] = useState<KeyboardStatsMap | null>(null);
   const streak = useMemo(() => getStreak(), []);
 
   useEffect(() => {
@@ -66,6 +68,20 @@ export default function Profile() {
       .finally(() => setDataLoading(false));
   }, [viewedUserId, syncStatus]);
 
+  useEffect(() => {
+    if (!isOwnProfile || !user?.$id) {
+      setCloudKeyStats(null);
+      return;
+    }
+    let cancelled = false;
+    void getCloudKeyboardStats().then((stats) => {
+      if (!cancelled) setCloudKeyStats(stats);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwnProfile, user?.$id, syncStatus]);
+
   const resolvedGithubUsername = profile?.githubUsername || (isOwnProfile && user ? githubUsernameFromUser(user) : undefined);
 
   const bestWpm = runs.length ? Math.max(...runs.map((run) => run.wpm)) : 0;
@@ -77,9 +93,13 @@ export default function Profile() {
     return Array.from(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
   }, [runs]);
   const userKeyStats = useMemo(() => {
-    const localStats = getStoredKeyStats(viewedUserId);
+    const localStats = isOwnProfile
+      ? cloudKeyStats
+        ? mergeStatsMaps(cloudKeyStats, getPendingKeyboardStats(viewedUserId)?.stats || {})
+        : getVisibleKeyStats(viewedUserId)
+      : getStoredKeyStats(viewedUserId);
     return computeKeyStatsFromCloudRuns(runs, localStats);
-  }, [viewedUserId, runs]);
+  }, [viewedUserId, runs, isOwnProfile, cloudKeyStats]);
   const bestRun = useMemo(() => [...runs].sort((a, b) => b.wpm - a.wpm)[0], [runs]);
 
   const syncLabel = syncStatus === "syncing" ? "Syncing local history" : syncStatus === "error" ? "Sync needs retry" : "Cloud history synced";

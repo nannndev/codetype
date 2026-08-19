@@ -89,3 +89,22 @@ Indexes:
 
 - Unique key on `challenge`
 - `userId`, `$createdAt` descending
+
+## `keyboard_stats`
+
+Document ID: Appwrite user ID. This collection stores aggregate key metrics only;
+raw key order and typed content never leave the browser.
+
+| Attribute | Type | Required |
+| --- | --- | --- |
+| `userId` | string (36) | yes |
+| `statsJson` | longtext | yes |
+| `processedBatchIds` | string (8000) | yes |
+| `updatedAt` | datetime | yes |
+
+Permissions:
+
+- Read: owning user
+- Create/update/delete: server API key only
+
+No index is required because each user document is fetched directly by its document ID.

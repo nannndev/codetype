@@ -11,6 +11,12 @@ export interface KeyStat {
 
 export type KeyboardStatsMap = Record<string, KeyStat>;
 
+export interface PendingKeyboardStats {
+  batchId: string;
+  includesMigration?: boolean;
+  stats: KeyboardStatsMap;
+}
+
 export interface PhysicalKeypress {
   key: string;
   delayMs: number;
@@ -151,6 +157,122 @@ export function getStoredKeyStats(userId?: string | null): KeyboardStatsMap {
   }
 }
 
+export function mergeStatsMaps(...maps: KeyboardStatsMap[]): KeyboardStatsMap {
+  const merged: KeyboardStatsMap = {};
+  for (const map of maps) {
+    for (const stat of Object.values(map)) {
+      const current = merged[stat.key] || {
+        key: stat.key,
+        totalPresses: 0,
+        errors: 0,
+        accuracy: 100,
+        totalDelayMs: 0,
+        avgDelayMs: 0,
+      };
+      current.totalPresses += stat.totalPresses;
+      current.errors += stat.errors;
+      current.totalDelayMs += stat.totalDelayMs;
+      current.avgDelayMs = current.totalPresses > 0
+        ? Math.round(current.totalDelayMs / current.totalPresses)
+        : 0;
+      current.accuracy = current.totalPresses > 0
+        ? Number((((current.totalPresses - current.errors) / current.totalPresses) * 100).toFixed(1))
+        : 100;
+      merged[stat.key] = current;
+    }
+  }
+  return merged;
+}
+
+/** Includes analytics captured before sign-in without duplicating them into account storage. */
+export function getVisibleKeyStats(userId?: string | null): KeyboardStatsMap {
+  const guestStats = getStoredKeyStats();
+  if (!userId) return guestStats;
+  return mergeStatsMaps(guestStats, getStoredKeyStats(userId));
+}
+
+function pendingStorageKey(userId?: string | null): string {
+  return `codey_keyboard_pending_v1_${userId || "guest"}`;
+}
+
+function migrationStorageKey(userId: string): string {
+  return `codey_keyboard_cloud_migrated_v1_${userId}`;
+}
+
+function createBatchId(): string {
+  return `kb_${Date.now().toString(36)}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
+
+export function getPendingKeyboardStats(userId?: string | null): PendingKeyboardStats | null {
+  try {
+    const raw = localStorage.getItem(pendingStorageKey(userId));
+    return raw ? JSON.parse(raw) as PendingKeyboardStats : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingKeyboardStats(pending: PendingKeyboardStats, userId?: string | null): void {
+  try {
+    localStorage.setItem(pendingStorageKey(userId), JSON.stringify(pending));
+  } catch {
+    // Local analytics remain available even if the sync queue cannot be persisted.
+  }
+}
+
+export function clearPendingKeyboardStats(userId?: string | null): void {
+  try {
+    localStorage.removeItem(pendingStorageKey(userId));
+  } catch {
+    // A later sync can safely retry the idempotent batch.
+  }
+}
+
+export function replacePendingKeyboardStats(stats: KeyboardStatsMap, userId?: string | null): void {
+  if (Object.keys(stats).length === 0) {
+    clearPendingKeyboardStats(userId);
+    return;
+  }
+  savePendingKeyboardStats({ batchId: createBatchId(), stats }, userId);
+}
+
+export function markKeyboardMigrationComplete(userId: string): void {
+  try {
+    localStorage.setItem(migrationStorageKey(userId), "1");
+  } catch {
+    // The server batch ID still protects retries from duplicate aggregation.
+  }
+}
+
+export function prepareKeyboardStatsMigration(userId: string): void {
+  try {
+    if (localStorage.getItem(migrationStorageKey(userId)) === "1") return;
+    const existingPending = getPendingKeyboardStats(userId);
+    if (existingPending?.includesMigration) return;
+    const snapshot = getVisibleKeyStats(userId);
+    if (Object.keys(snapshot).length === 0) {
+      markKeyboardMigrationComplete(userId);
+      return;
+    }
+    savePendingKeyboardStats({
+      batchId: existingPending?.batchId || createBatchId(),
+      includesMigration: true,
+      stats: snapshot,
+    }, userId);
+  } catch {
+    // Migration retries the next time the authenticated app starts.
+  }
+}
+
+function queuePendingStats(stats: KeyboardStatsMap, userId?: string | null): void {
+  const pending = getPendingKeyboardStats(userId);
+  savePendingKeyboardStats({
+    batchId: pending?.batchId || createBatchId(),
+    includesMigration: pending?.includesMigration,
+    stats: mergeStatsMaps(pending?.stats || {}, stats),
+  }, userId);
+}
+
 export function saveKeyStats(stats: KeyboardStatsMap, userId?: string | null): void {
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(stats));
@@ -164,6 +286,7 @@ export function recordPhysicalKeypressStats(
   userId?: string | null,
 ): KeyboardStatsMap {
   const stats = getStoredKeyStats(userId);
+  const delta: KeyboardStatsMap = {};
 
   for (const keypress of keypresses) {
     const existing = stats[keypress.key] || {
@@ -183,9 +306,24 @@ export function recordPhysicalKeypressStats(
       (((existing.totalPresses - existing.errors) / existing.totalPresses) * 100).toFixed(1)
     );
     stats[keypress.key] = existing;
+    const pending = delta[keypress.key] || {
+      key: keypress.key,
+      totalPresses: 0,
+      errors: 0,
+      accuracy: 100,
+      totalDelayMs: 0,
+      avgDelayMs: 0,
+    };
+    pending.totalPresses += 1;
+    if (keypress.isError) pending.errors += 1;
+    pending.totalDelayMs += Math.max(0, Math.round(keypress.delayMs));
+    pending.avgDelayMs = Math.round(pending.totalDelayMs / pending.totalPresses);
+    pending.accuracy = Number((((pending.totalPresses - pending.errors) / pending.totalPresses) * 100).toFixed(1));
+    delta[keypress.key] = pending;
   }
 
   saveKeyStats(stats, userId);
+  queuePendingStats(delta, userId);
   return stats;
 }
 

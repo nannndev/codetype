@@ -32,7 +32,9 @@ import {
   normalizePhysicalKey,
   recordPhysicalKeypressStats,
   type PhysicalKeypress,
+  prepareKeyboardStatsMigration,
 } from "@/utils/keyboard-analytics";
+import { scheduleKeyboardStatsSync, syncKeyboardStatsNow } from "@/lib/keyboard-stats-cloud";
 import type { TestMode, TimedDuration, RunResult, PersonalBest } from "@/types";
 
 import { RankedAuthModal } from "@/components/RankedAuthModal";
@@ -88,14 +90,32 @@ export default function App() {
   const submittedRankedSessionRef = useRef<string | null>(null);
   const physicalKeypressesRef = useRef<PhysicalKeypress[]>([]);
   const lastPhysicalKeyAtRef = useRef<number | null>(null);
+  const keypressFlushTimerRef = useRef<number | null>(null);
+
+  const flushPhysicalKeypresses = useCallback(() => {
+    if (keypressFlushTimerRef.current !== null) {
+      window.clearTimeout(keypressFlushTimerRef.current);
+      keypressFlushTimerRef.current = null;
+    }
+    if (physicalKeypressesRef.current.length === 0) return;
+    recordPhysicalKeypressStats(physicalKeypressesRef.current, userIdRef.current);
+    physicalKeypressesRef.current = [];
+    if (userIdRef.current) scheduleKeyboardStatsSync(userIdRef.current);
+  }, []);
 
   const resetPhysicalKeypresses = useCallback(() => {
-    physicalKeypressesRef.current = [];
+    flushPhysicalKeypresses();
     lastPhysicalKeyAtRef.current = null;
-  }, []);
+  }, [flushPhysicalKeypresses]);
+
+  useEffect(() => () => flushPhysicalKeypresses(), [flushPhysicalKeypresses]);
 
   useEffect(() => {
     userIdRef.current = user?.$id ?? null;
+    if (user?.$id) {
+      prepareKeyboardStatsMigration(user.$id);
+      void syncKeyboardStatsNow(user.$id);
+    }
   }, [user]);
 
   const focusWorkspace = useCallback(() => {
@@ -165,7 +185,8 @@ export default function App() {
       if (!isCustom) try {
         saveResult(r);
         updateStreak();
-        recordPhysicalKeypressStats(physicalKeypressesRef.current, userIdRef.current);
+        flushPhysicalKeypresses();
+        if (userIdRef.current) void syncKeyboardStatsNow(userIdRef.current);
         setGoalRefreshKey((key) => key + 1);
         if (!isRanked && userIdRef.current && isRankEligible(r)) {
           void uploadRun(userIdRef.current, r)
@@ -176,7 +197,7 @@ export default function App() {
         // localStorage may be unavailable
       }
     }
-  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars, isRanked, preferences.snippetLength, config.duration, progressSnapshots]);
+  }, [status, snippet, input, elapsedMs, wpmSnapshots, config.mode, snippetsCompleted, keystrokes, mistakes, errorHistory, completedCorrectChars, isRanked, preferences.snippetLength, config.duration, progressSnapshots, flushPhysicalKeypresses]);
 
   useEffect(() => {
     if (
@@ -328,6 +349,9 @@ export default function App() {
           isError,
         });
         lastPhysicalKeyAtRef.current = now;
+        if (keypressFlushTimerRef.current === null) {
+          keypressFlushTimerRef.current = window.setTimeout(flushPhysicalKeypresses, 750);
+        }
       }
 
       if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -364,7 +388,7 @@ export default function App() {
         engineHandleKey("\n");
       }
     },
-    [status, mode, input, snippet.code, engineHandleKey, handleRetry, stop, playKeyboardSound, editorFocusMode, preferences.focusShortcut, preferences.restartShortcut],
+    [status, mode, input, snippet.code, engineHandleKey, handleRetry, stop, playKeyboardSound, editorFocusMode, preferences.focusShortcut, preferences.restartShortcut, flushPhysicalKeypresses],
   );
 
   const charStates = useMemo(() => computeCharStates(snippet.code, input), [snippet.code, input]);

@@ -1,7 +1,9 @@
 import { Zap, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { KeyboardHeatmap } from "@/components/KeyboardHeatmap";
 import { useAuth } from "@/components/AuthProvider";
-import { getStoredKeyStats } from "@/utils/keyboard-analytics";
+import { getPendingKeyboardStats, getVisibleKeyStats, mergeStatsMaps, type KeyboardStatsMap } from "@/utils/keyboard-analytics";
+import { getCloudKeyboardStats } from "@/lib/keyboard-stats-cloud";
 
 interface HeatmapModalProps {
   isOpen: boolean;
@@ -11,6 +13,22 @@ interface HeatmapModalProps {
 
 export function HeatmapModal({ isOpen, onClose, onDrillKey }: HeatmapModalProps) {
   const { user } = useAuth();
+  const [stats, setStats] = useState<KeyboardStatsMap>(() => getVisibleKeyStats(user?.$id));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setStats(getVisibleKeyStats(user?.$id));
+    if (!user?.$id) return;
+    let cancelled = false;
+    void getCloudKeyboardStats().then((cloudStats) => {
+      if (cancelled || !cloudStats) return;
+      setStats(mergeStatsMaps(cloudStats, getPendingKeyboardStats(user.$id)?.stats || {}));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, user?.$id]);
+
   if (!isOpen) return null;
 
   return (
@@ -40,7 +58,7 @@ export function HeatmapModal({ isOpen, onClose, onDrillKey }: HeatmapModalProps)
         </div>
 
         <KeyboardHeatmap
-          statsMap={getStoredKeyStats(user?.$id)}
+          statsMap={stats}
           onDrillKey={(key) => {
             if (onDrillKey) onDrillKey(key);
             onClose();
